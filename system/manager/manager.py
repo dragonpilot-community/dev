@@ -20,6 +20,7 @@ from openpilot.system.athena.registration import register, UNREGISTERED_DONGLE_I
 from openpilot.common.swaglog import cloudlog, add_file_handler
 from openpilot.system.version import get_build_metadata
 from openpilot.system.hardware.hw import Paths
+from openpilot.system.manager.vehicle_model_collector import VehicleModelCollector
 
 
 def manager_init() -> None:
@@ -43,6 +44,7 @@ def manager_init() -> None:
     default_value = params.get_default_value(k)
     if default_value is not None and params.get(k) is None:
       params.put(k, default_value)
+  params.put("dp_dev_model_list", VehicleModelCollector().get())
 
   # Create folders needed for msgq
   try:
