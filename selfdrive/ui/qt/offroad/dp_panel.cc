@@ -106,6 +106,11 @@ void DPPanel::add_lateral_toggles() {
       QString::fromUtf8("🐉 ") + tr("Lateral Ctrl"),
       "",
     },
+    {
+      "dp_lat_alka",
+      tr("Always-on Lane Keeping Assist (ALKA)"),
+      "",
+    },
   };
 
   QWidget *label = nullptr;

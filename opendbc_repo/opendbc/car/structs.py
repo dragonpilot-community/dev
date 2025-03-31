@@ -20,4 +20,5 @@ CarControlT = capnp.lib.capnp._StructModule
 CarParamsT = capnp.lib.capnp._StructModule
 
 class DPFlags:
+  LateralALKA = 1
   pass

@@ -57,6 +57,13 @@ class DragonpilotLayout(Widget):
   def _lat_toggles(self):
     self._toggles["title_lat"] = simple_item(title=lambda: tr("### Lateral ###"))
 
+    self._toggles["dp_lat_alka"] = toggle_item(
+      title=lambda: tr_noop("Always-on Lane Keeping Assist (ALKA)"),
+      description=lambda: tr_noop("Allows openpilot to always steer to keep the car in its lane."),
+      initial_state=self._params.get_bool("dp_lat_alka"),
+      callback=lambda val: self._params.put_bool("dp_lat_alka", val),
+    )
+
   def _lon_toggles(self):
     self._toggles["title_lon"] = simple_item(title=lambda: tr("### Longitudinal ###"))
 

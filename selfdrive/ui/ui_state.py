@@ -20,6 +20,7 @@ class UIStatus(Enum):
   DISENGAGED = "disengaged"
   ENGAGED = "engaged"
   OVERRIDE = "override"
+  ALKA = "alka"
 
 
 class UIState:
@@ -51,6 +52,7 @@ class UIState:
         "selfdriveState",
         "longitudinalPlan",
         "rawAudioData",
+        "dpControlsState",
       ]
     )
 
@@ -78,6 +80,9 @@ class UIState:
     # Callbacks
     self._offroad_transition_callbacks: list[Callable[[], None]] = []
     self._engaged_transition_callbacks: list[Callable[[], None]] = []
+
+    # dp
+    self.dp_alka_active = False
 
     self.update_params()
 
@@ -133,6 +138,10 @@ class UIState:
     self.recording_audio = self.params.get_bool("RecordAudio") and self.started
 
     self.is_metric = self.params.get_bool("IsMetric")
+
+    # dp
+    if self.sm.updated["dpControlsState"]:
+      self.dp_alka_active = self.sm["dpControlsState"].alkaActive
 
   def _update_status(self) -> None:
     if self.started and self.sm.updated["selfdriveState"]:
