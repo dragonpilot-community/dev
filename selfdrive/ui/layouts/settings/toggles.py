@@ -31,6 +31,7 @@ DESCRIPTIONS = {
   'RecordFront': tr_noop("Upload data from the driver facing camera and help improve the driver monitoring algorithm."),
   "IsMetric": tr_noop("Display speed in km/h instead of mph."),
   "RecordAudio": tr_noop("Record and store microphone audio while driving. The audio will be included in the dashcam video in comma connect."),
+  "DisableLogging": tr_noop("Disable logging service"),
 }
 
 
@@ -88,6 +89,12 @@ class TogglesLayout(Widget):
         lambda: tr("Use Metric System"),
         DESCRIPTIONS["IsMetric"],
         "metric.png",
+        False,
+      ),
+      "DisableLogging": (
+        lambda: tr("Disable Logging"),
+        DESCRIPTIONS["DisableLogging"],
+        "",
         False,
       ),
     }
