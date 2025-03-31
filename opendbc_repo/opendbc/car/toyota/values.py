@@ -80,6 +80,7 @@ class ToyotaFlags(IntFlag):
   # these cars are speculated to allow stop and go when the DSU is unplugged
   SNG_WITHOUT_DSU_DEPRECATED = 512
 
+  TSS1_SNG = 2 ** 13
 
 def dbc_dict(pt, radar):
   return {Bus.pt: pt, Bus.radar: radar}

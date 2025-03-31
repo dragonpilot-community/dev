@@ -144,6 +144,9 @@ class CarInterface(CarInterfaceBase):
       if ret.flags & ToyotaFlags.HYBRID.value:
         ret.longitudinalActuatorDelay = 0.05
 
+    if dp_params & structs.DPFlags.ToyotaTSS1SnG:
+      ret.flags |= ToyotaFlags.TSS1_SNG.value
+
     return ret
 
   @staticmethod
