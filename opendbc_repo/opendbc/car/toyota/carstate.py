@@ -53,6 +53,11 @@ class CarState(CarStateBase):
     self.gvc = 0.0
     self.secoc_synchronization = None
 
+    # radar filter (mainly for CHR/Camry)
+    # the idea is to place a Panda in between Radar and camera/body (engine room) to block 0x343 (longitudinal)
+    # depends on the firmware, we should be able to read most CAN directly from cp (not cp_cam, its empty)
+    self.dp_radar_filter = bool(self.CP.flags & ToyotaFlags.RADAR_FILTER.value)
+
   def update(self, can_parsers) -> structs.CarState:
     cp = can_parsers[Bus.pt]
     cp_cam = can_parsers[Bus.cam]
@@ -78,7 +83,7 @@ class CarState(CarStateBase):
     else:
       ret.gasPressed = cp.vl["PCM_CRUISE"]["GAS_RELEASED"] == 0  # TODO: these also have GAS_PEDAL, come back and unify
       can_gear = int(cp.vl["GEAR_PACKET"]["GEAR"])
-      if not self.CP.flags & ToyotaFlags.DISABLE_RADAR.value:
+      if not self.CP.flags & ToyotaFlags.DISABLE_RADAR.value or self.dp_radar_filter:
         ret.stockAeb = bool(cp_acc.vl["PRE_COLLISION"]["PRECOLLISION_ACTIVE"] and cp_acc.vl["PRE_COLLISION"]["FORCE"] < -1e-5)
 
     self.parse_wheel_speeds(ret,
