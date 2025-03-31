@@ -106,4 +106,7 @@ class CarInterface(CarInterfaceBase):
       safety_configs.insert(0, get_safety_config(structs.CarParams.SafetyModel.noOutput))
     ret.safetyConfigs = safety_configs
 
+    if dp_params & structs.DPFlags.VagA0SnG:
+      ret.flags |= VolkswagenFlags.A0SnG.value
+
     return ret

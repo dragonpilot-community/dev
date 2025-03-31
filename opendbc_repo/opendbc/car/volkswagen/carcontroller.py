@@ -31,6 +31,7 @@ class CarController(CarControllerBase):
     self.eps_timer_soft_disable_alert = False
     self.hca_frame_timer_running = 0
     self.hca_frame_same_torque = 0
+    self._dp_vag_a0_sng = bool(self.CP.flags & VolkswagenFlags.A0SnG)
 
   def update(self, CC, CS, now_nanos):
     actuators = CC.actuators
@@ -119,11 +120,22 @@ class CarController(CarControllerBase):
                                                        lead_distance, hud_control.leadDistanceBars))
 
     # **** Stock ACC Button Controls **************************************** #
+    if self._dp_vag_a0_sng:
+      if self.CP.pcmCruise and CS.gra_stock_values["COUNTER"] != self.gra_acc_counter_last:
+        standing_resume_spam = CS.out.standstill
+        spam_window = self.frame % 50 < 15
 
-    gra_send_ready = self.CP.pcmCruise and CS.gra_stock_values["COUNTER"] != self.gra_acc_counter_last
-    if gra_send_ready and (CC.cruiseControl.cancel or CC.cruiseControl.resume):
-      can_sends.append(self.CCS.create_acc_buttons_control(self.packer_pt, self.CAN.ext, CS.gra_stock_values,
-                                                           cancel=CC.cruiseControl.cancel, resume=CC.cruiseControl.resume))
+        send_cancel = CC.cruiseControl.cancel
+        send_resume = CC.cruiseControl.resume or (standing_resume_spam and spam_window)
+
+        if send_cancel or send_resume:
+          can_sends.append(self.CCS.create_acc_buttons_control(self.packer_pt, self.CAN.ext, CS.gra_stock_values,
+                                                               cancel=send_cancel, resume=send_resume))
+    else:
+      gra_send_ready = self.CP.pcmCruise and CS.gra_stock_values["COUNTER"] != self.gra_acc_counter_last
+      if gra_send_ready and (CC.cruiseControl.cancel or CC.cruiseControl.resume):
+        can_sends.append(self.CCS.create_acc_buttons_control(self.packer_pt, self.CAN.ext, CS.gra_stock_values,
+                                                             cancel=CC.cruiseControl.cancel, resume=CC.cruiseControl.resume))
 
     new_actuators = actuators.as_builder()
     new_actuators.torque = self.apply_torque_last / self.CCP.STEER_MAX
