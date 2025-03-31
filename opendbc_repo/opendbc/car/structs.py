@@ -20,4 +20,5 @@ CarControlT = capnp.lib.capnp._StructModule
 CarParamsT = capnp.lib.capnp._StructModule
 
 class DPFlags:
+  ExtRadar = 2
   pass
