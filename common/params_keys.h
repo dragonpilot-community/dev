@@ -131,4 +131,6 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"Version", {PERSISTENT, STRING}},
     {"dp_device_last_log", {CLEAR_ON_ONROAD_TRANSITION, STRING}},
     {"dp_device_reset_conf", {CLEAR_ON_MANAGER_START, BOOL}},
+    {"dp_lon_ext_radar", {PERSISTENT, BOOL, "0"}},
+    {"dp_lon_ext_radar_serial", {PERSISTENT, BOOL, "0"}},
 };

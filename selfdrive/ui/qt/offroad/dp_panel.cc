@@ -139,6 +139,16 @@ void DPPanel::add_longitudinal_toggles() {
       QString::fromUtf8("🐉 ") + tr("Longitudinal Ctrl"),
       "",
     },
+    {
+      "dp_lon_ext_radar",
+      tr("Use External Radar"),
+      tr("See https://github.com/eFiniLan/openpilot-ext-radar-addon for more information."),
+    },
+    {
+      "dp_lon_ext_radar_serial",
+      QString::fromUtf8("　") + tr("Use USB Serial Radar"),
+      "",
+    },
   };
 
   QWidget *label = nullptr;
@@ -148,6 +158,12 @@ void DPPanel::add_longitudinal_toggles() {
     if (param.isEmpty()) {
       label = new LabelControl(title, "");
       addItem(label);
+      continue;
+    }
+    if (param == "dp_lon_ext_radar" && !vehicle_has_radar_unavailable) {
+      continue;
+    }
+    if (param == "dp_lon_ext_radar_serial" && (!vehicle_has_radar_unavailable || !device_has_ext_radar_serial)) {
       continue;
     }
 
@@ -241,6 +257,7 @@ DPPanel::DPPanel(SettingsWindow *parent) : ListWidget(parent) {
     vehicle_has_long_ctrl = hasLongitudinalControl(CP);
     vehicle_has_radar_unavailable = CP.getRadarUnavailable();
   }
+  device_has_ext_radar_serial = getenv("EXT_RADAR_SERIAL");
 
   if (brand == "toyota") {
     add_toyota_toggles();
@@ -281,12 +298,16 @@ void DPPanel::showEvent(QShowEvent *event) {
 
 void DPPanel::updateStates() {
   // do fs_watch here
+  fs_watch->addParam("dp_lon_ext_radar");
 
   if (!isVisible()) {
     return;
   }
 
   // do state change logic here
+  if (vehicle_has_radar_unavailable && device_has_ext_radar_serial) {
+    toggles["dp_lon_ext_radar_serial"]->setVisible(params.getBool("dp_lon_ext_radar"));
+  }
 
 }
 

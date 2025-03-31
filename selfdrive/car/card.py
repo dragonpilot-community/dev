@@ -111,6 +111,14 @@ class Car:
       self.CI, self.CP = CI, CI.CP
       self.RI = RI
 
+    if self.params.get_bool("dp_lon_ext_radar"):
+      if "EXT_RADAR_SERIAL" in os.environ and self.params.get_bool("dp_lon_ext_radar_serial"):
+        from opendbc.car.serial_radar_interface import RadarInterface
+        self.RI = RadarInterface(self.CI.CP)
+      else:
+        from opendbc.car.radar_interface import RadarInterface
+        self.RI = RadarInterface(self.CI.CP)
+
     self.CP.alternativeExperience = 0
     openpilot_enabled_toggle = self.params.get_bool("OpenpilotEnabledToggle")
     controller_available = self.CI.CC is not None and openpilot_enabled_toggle and not self.CP.dashcamOnly

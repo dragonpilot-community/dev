@@ -27,6 +27,27 @@ function agnos_init {
   fi
 }
 
+function aux_usb_check() {
+  local PORT="/dev/ttyUSB0"
+
+  # 1. First, check if the serial port device file even exists.
+  if [ ! -c "$PORT" ]; then
+    echo "USB TTL not detected"
+  fi
+
+  # 2. Configure the port and check the data stream.
+  #    - hexdump -v -e '/1 "%02x"': Replaces 'xxd -p'. It formats each byte
+  #      as a 2-digit hex value, creating a continuous hex string.
+  local BAUD_RATE="921600"
+  local HEX_SIGNATURE="cbfeddff"
+  if timeout 1s bash -c "stty -F $PORT $BAUD_RATE raw -echo; head -c 256 $PORT" | hexdump -v -e '/1 "%02x"' | grep -q "$HEX_SIGNATURE"; then
+    export EXT_RADAR_SERIAL=1
+    echo "Serial Radar Found"
+  else
+    echo "USB TTL detected, but Serial Radar Not Found"
+  fi
+}
+
 function launch {
   # Remove orphaned git lock if it exists on boot
   [ -f "$DIR/.git/index.lock" ] && rm -f $DIR/.git/index.lock
@@ -71,6 +92,7 @@ function launch {
 
   # hardware specific init
   if [ -f /AGNOS ]; then
+    aux_usb_check
     agnos_init
   fi
 
