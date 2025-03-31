@@ -75,6 +75,13 @@ TogglesPanel::TogglesPanel(SettingsWindow *parent) : ListWidget(parent) {
       "../assets/icons/metric.png",
       false,
     },
+    {
+      "DisableLogging",
+      tr("Disable Logging"),
+      "",
+      "../assets/offroad/icon_empty.svg",
+      true,
+    },
   };
 
 
