@@ -261,6 +261,10 @@ class CarController(CarControllerBase):
         elif net_acceleration_request_min > 0.3:
           self.permit_braking = False
 
+        # rick - do not do delay compensation for non-TSS2 vehicles (e.g. car with sDSU?), assign the value back to actuators.accel
+        # from Jason, see https://github.com/sunnypilot/opendbc/compare/dd2016f77f8467ca2f7934db1b8c6d73164b3df7...f90b75b1531d0ef949c1c7fb8c175059448a2a97#diff-dc03b1fc7156134429efc0cdced75bc227d0ceb8bbd0c55763022fb9db6794d9
+        if not self.CP.carFingerprint in TSS2_CAR:
+          pcm_accel_cmd = actuators.accel
         pcm_accel_cmd = float(np.clip(pcm_accel_cmd, self.params.ACCEL_MIN, self.params.ACCEL_MAX))
 
         main_accel_cmd = 0. if self.CP.flags & ToyotaFlags.SECOC.value else pcm_accel_cmd

@@ -62,6 +62,8 @@ class ToyotaSafetyFlags(IntFlag):
 class ToyotaFlags(IntFlag):
   # Detected flags
   HYBRID = 1
+  # use legacy id
+  SDSU = 2
   DISABLE_RADAR = 4
 
   # Static flags
