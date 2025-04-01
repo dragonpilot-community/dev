@@ -83,11 +83,17 @@ class AugmentedRoadView(CameraView):
     # Render the base camera view
     super()._render(rect)
 
+    hide_hud = False
+    if ui_state.dp_ui_hide_hud_speed_ms > 0. and ui_state.sm['carState'].vEgo > ui_state.dp_ui_hide_hud_speed_ms:
+      hide_hud = True
+
     # Draw all UI overlays
     self.model_renderer.render(self._content_rect)
-    self._hud_renderer.render(self._content_rect)
+    if not hide_hud:
+      self._hud_renderer.render(self._content_rect)
     self.alert_renderer.render(self._content_rect)
-    self.driver_state_renderer.render(self._content_rect)
+    if not hide_hud:
+      self.driver_state_renderer.render(self._content_rect)
 
     # Custom UI extension point - add custom overlays here
     # Use self._content_rect for positioning within camera bounds

@@ -85,6 +85,9 @@ class UIState:
     self._offroad_transition_callbacks: list[Callable[[], None]] = []
     self._engaged_transition_callbacks: list[Callable[[], None]] = []
 
+    # dp
+    self.dp_ui_hide_hud_speed_ms: float = float(int(self.params.get("dp_ui_hide_hud_speed_kph") or 0) * 0.278)
+
     self.update_params()
 
   def add_offroad_transition_callback(self, callback: Callable[[], None]):
