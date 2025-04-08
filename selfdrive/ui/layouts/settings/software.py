@@ -68,7 +68,7 @@ class SoftwareLayout(Widget):
       self._version_item,
       self._download_btn,
       self._install_btn,
-      self._branch_btn,
+      # self._branch_btn, # rick - disable this for now
       button_item(lambda: tr("Uninstall"), lambda: tr("UNINSTALL"), callback=self._on_uninstall),
     ], line_separator=True, spacing=0)
 
