@@ -53,7 +53,11 @@ class DeviceLayout(Widget):
     self._power_off_btn = dual_button_item(lambda: tr("Reboot"), lambda: tr("Power Off"),
                                            left_callback=self._reboot_prompt, right_callback=self._power_off_prompt)
 
+    self._dp_on_off_road_btn = button_item(lambda: tr("On/Off Road"), lambda: tr("Go Offroad"), lambda: tr("Force openpilot to go into onroad/offroad state.<br>(e.g. for update purpose)"),
+                                        callback=self._dp_on_off_road_prompt)
+
     items = [
+      self._dp_on_off_road_btn,
       text_item(lambda: tr("Dongle ID"), self._params.get("DongleId") or (lambda: tr("N/A"))),
       text_item(lambda: tr("Serial"), self._params.get("HardwareSerial") or (lambda: tr("N/A"))),
       self._pair_device_btn,
@@ -192,3 +196,16 @@ class DeviceLayout(Widget):
     if not self._training_guide:
       self._training_guide = TrainingGuide()
     gui_app.push_widget(self._training_guide)
+
+  def _dp_on_off_road_prompt(self):
+    def on_off_road(result: int):
+      if result != DialogResult.CONFIRM:
+        return
+
+      val = self._params.get_bool("dp_dev_go_off_road")
+      self._params.put_bool("dp_dev_go_off_road", not val)
+
+      self._dp_on_off_road_btn.action_item.set_text(tr("Go Onroad") if not val else tr("Go Offroad"))
+
+    dialog = ConfirmDialog(tr("Are you sure you want to switch?"), tr("CONFIRM"))
+    gui_app.set_modal_overlay(dialog, callback=on_off_road)
