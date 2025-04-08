@@ -45,6 +45,21 @@ DeveloperPanel::DeveloperPanel(SettingsWindow *parent) : ListWidget(parent) {
 
   // Toggles should be not available to change in onroad state
   QObject::connect(uiState(), &UIState::offroadTransition, this, &DeveloperPanel::updateToggles);
+
+  // error logs
+  QPushButton* error_log_btn = new QPushButton(QObject::tr("Show Last Errors"));
+  error_log_btn->setObjectName("error_log_btn");
+
+  error_log_btn->setStyleSheet(R"(
+    #error_log_btn { height: 120px; border-radius: 15px; background-color: #393939; }
+    #error_log_btn:pressed { background-color: #4a4a4a; }
+  )");
+
+  addItem(error_log_btn);
+
+  QObject::connect(error_log_btn, &QPushButton::clicked, [=]() {
+    ConfirmationDialog::rich(QString::fromStdString(params.get("dp_dev_last_log")), parent);
+  });
 }
 
 void DeveloperPanel::updateToggles(bool _offroad) {
