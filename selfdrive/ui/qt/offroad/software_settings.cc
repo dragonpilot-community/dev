@@ -50,6 +50,7 @@ SoftwarePanel::SoftwarePanel(QWidget* parent) : ListWidget(parent) {
   addItem(installBtn);
 
   // branch selecting
+  /*
   targetBranchBtn = new ButtonControl(tr("Target Branch"), tr("SELECT"));
   connect(targetBranchBtn, &ButtonControl::clicked, [=]() {
     auto current = params.get("GitBranch");
@@ -73,6 +74,7 @@ SoftwarePanel::SoftwarePanel(QWidget* parent) : ListWidget(parent) {
   if (!params.getBool("IsTestedBranch")) {
     addItem(targetBranchBtn);
   }
+  */
 
   // uninstall button
   auto uninstallBtn = new ButtonControl(tr("Uninstall %1").arg(getBrand()), tr("UNINSTALL"));
@@ -142,7 +144,7 @@ void SoftwarePanel::updateLabels() {
     }
     downloadBtn->setEnabled(true);
   }
-  targetBranchBtn->setValue(QString::fromStdString(params.get("UpdaterTargetBranch")));
+//  targetBranchBtn->setValue(QString::fromStdString(params.get("UpdaterTargetBranch")));
 
   // current + new versions
   versionLbl->setText(QString::fromStdString(params.get("UpdaterCurrentDescription")));
