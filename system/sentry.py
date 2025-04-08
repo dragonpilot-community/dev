@@ -26,11 +26,16 @@ def report_tombstone(fn: str, message: str, contents: str) -> None:
     sentry_sdk.capture_message(message=message)
     sentry_sdk.flush()
 
+def save_exception(exc_text):
+  log = "\n".join(exc_text.splitlines()) + "\n"
+  Params().put("dp_dev_last_log", log)
 
 def capture_exception(*args, **kwargs) -> None:
   cloudlog.error("crash", exc_info=kwargs.get('exc_info', 1))
 
   try:
+    import traceback
+    save_exception(traceback.format_exc())
     sentry_sdk.capture_exception(*args, **kwargs)
     sentry_sdk.flush()  # https://github.com/getsentry/sentry-python/issues/291
   except Exception:
