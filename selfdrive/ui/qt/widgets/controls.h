@@ -88,6 +88,10 @@ public:
     label.setText(text);
     label.setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     hlayout->addWidget(&label);
+    if (text == "") {
+      setContentsMargins(0, 50, 0, 0); // 30px top margin, 10px bottom margin
+                                        // This will create space above and below the entire header control.
+    }
   }
   void setText(const QString &text) { label.setText(text); }
 
