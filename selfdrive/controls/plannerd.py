@@ -23,7 +23,8 @@ def main():
                            poll='modelV2')
 
   dp_flags = 0
-
+  if params.get_bool("dp_lon_no_gas_gating"):
+    dp_flags |= DPFlags.NO_GAS_GATING
   while True:
     sm.update()
     if sm.updated['modelV2']:
