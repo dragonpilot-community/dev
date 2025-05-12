@@ -14,6 +14,7 @@ from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.long_mpc import T_IDX
 from openpilot.selfdrive.controls.lib.drive_helpers import CONTROL_N, get_accel_from_plan
 from openpilot.selfdrive.car.cruise import V_CRUISE_MAX, V_CRUISE_UNSET
 from openpilot.common.swaglog import cloudlog
+from dragonpilot.selfdrive.controls.lib.acm import ACM
 
 A_CRUISE_MAX_VALS = [1.6, 1.2, 0.8, 0.6]
 A_CRUISE_MAX_BP = [0., 10.0, 25., 40.]
@@ -26,6 +27,7 @@ _A_TOTAL_MAX_V = [1.7, 3.2]
 _A_TOTAL_MAX_BP = [20., 40.]
 
 class DPFlags:
+  ACM = 1
   pass
 
 
@@ -66,6 +68,8 @@ class LongitudinalPlanner:
     self.v_desired_trajectory = np.zeros(CONTROL_N)
     self.a_desired_trajectory = np.zeros(CONTROL_N)
     self.j_desired_trajectory = np.zeros(CONTROL_N)
+    self.solverExecutionTime = 0.0
+    self.acm = ACM()
 
   @staticmethod
   def parse_model(model_msg):
@@ -105,6 +109,16 @@ class LongitudinalPlanner:
     reset_state = long_control_off if self.CP.openpilotLongitudinalControl else not sm['selfdriveState'].enabled
     # PCM cruise speed may be updated a few cycles later, check if initialized
     reset_state = reset_state or not v_cruise_initialized
+
+    # Update ACM status
+    if dp_flags & DPFlags.ACM:
+      self.acm.enabled = True
+      user_control = long_control_off if self.CP.openpilotLongitudinalControl else not sm['selfdriveState'].enabled
+      self.acm.update_states(sm['carControl'], sm['radarState'], user_control, v_ego, v_cruise)
+      if self.acm.active:
+        reset_state = True
+    else:
+      self.acm.enabled = False
 
     # No change cost when user is controlling the speed, or when standstill
     prev_accel_constraint = not (reset_state or sm['carState'].standstill)
@@ -170,6 +184,10 @@ class LongitudinalPlanner:
     self.output_a_target = np.clip(output_a_target, accel_clip[0], accel_clip[1])
     self.prev_accel_clip = accel_clip
 
+    # ACM
+    if self.acm.enabled and self.acm.active:
+      self.output_a_target = max(0.01, self.output_a_target)
+
   def publish(self, sm, pm):
     plan_send = messaging.new_message('longitudinalPlan')
 
@@ -194,3 +212,8 @@ class LongitudinalPlanner:
     longitudinalPlan.allowThrottle = bool(self.allow_throttle)
 
     pm.send('longitudinalPlan', plan_send)
+
+    plan_ext_send = messaging.new_message('longitudinalPlanExt')
+    plan_ext_send.valid = True
+    plan_ext_send.longitudinalPlanExt.acmActive = self.acm.enabled and self.acm.active
+    pm.send('longitudinalPlanExt', plan_ext_send)
