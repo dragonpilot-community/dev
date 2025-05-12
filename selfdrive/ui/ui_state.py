@@ -85,6 +85,9 @@ class UIState:
     self._offroad_transition_callbacks: list[Callable[[], None]] = []
     self._engaged_transition_callbacks: list[Callable[[], None]] = []
 
+    # dp
+    self.dp_ui_rainbow = self.params.get_bool("dp_ui_rainbow")
+
     self.update_params()
 
   def add_offroad_transition_callback(self, callback: Callable[[], None]):

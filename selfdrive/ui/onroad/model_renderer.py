@@ -27,6 +27,13 @@ NO_THROTTLE_COLORS = [
   rl.Color(242, 242, 242, 0),   # HSLF(112/360, 0.0, 0.95, 0.0)
 ]
 
+# dp
+DP_RAINBOW_SCROLL_SPEED_FACTOR = 20.0
+DP_RAINBOW_NUM_REPEATS = 3
+DP_RAINBOW_ALPHA = 128
+DP_RAINBOW_GRADIENT_SAMPLES = 20
+DP_RAINBOW_HUE_SECTORS = 6
+
 
 @dataclass
 class ModelPoints:
@@ -75,6 +82,10 @@ class ModelRenderer(Widget):
     if car_params := Params().get("CarParams"):
       cp = messaging.log_from_bytes(car_params, car.CarParams)
       self._longitudinal_control = cp.openpilotLongitudinalControl
+
+    # dp
+    self._dp_ui_rainbow_rotation = 0.0
+    self._dp_ui_rainbow_gradient = None
 
   def set_transform(self, transform: np.ndarray):
     self._car_space_transform = transform.astype(np.float32)
@@ -278,6 +289,13 @@ class ModelRenderer(Widget):
     if not self._path.projected_points.size:
       return
 
+    if ui_state.dp_ui_rainbow:
+      v_ego = sm['carState'].vEgo
+      self._update_rainbow_gradient(v_ego)
+      if self._dp_ui_rainbow_gradient:
+        draw_polygon(self._rect, self._path.projected_points, gradient=self._dp_ui_rainbow_gradient)
+      return
+
     allow_throttle = sm['longitudinalPlan'].allowThrottle or not self._longitudinal_control
     self._blend_filter.update(int(allow_throttle))
 
@@ -433,3 +451,55 @@ class ModelRenderer(Widget):
       int(inv_t * start.b + t * end.b),
       int(inv_t * start.a + t * end.a)
     ) for start, end in zip(begin_colors, end_colors, strict=True)]
+
+  def _update_rainbow_gradient(self, v_ego):
+    # Scroll speed
+    rotation_speed = max(0.01, v_ego) / gui_app.target_fps / DP_RAINBOW_SCROLL_SPEED_FACTOR
+    self._dp_ui_rainbow_rotation += rotation_speed
+    if self._dp_ui_rainbow_rotation > 1.0:
+      self._dp_ui_rainbow_rotation -= 1.0
+
+    gradient_stops = np.linspace(0, 1, DP_RAINBOW_GRADIENT_SAMPLES)
+
+    hues = (gradient_stops * DP_RAINBOW_NUM_REPEATS + self._dp_ui_rainbow_rotation) % 1.0
+
+    # Vectorized hsv_to_rgb
+    i = np.floor(hues * DP_RAINBOW_HUE_SECTORS).astype(np.uint8)
+    f = hues * DP_RAINBOW_HUE_SECTORS - i
+    q = 1 - f
+    t = f
+
+    i %= DP_RAINBOW_HUE_SECTORS
+
+    rgb = np.zeros((hues.shape[0], 3))
+
+    masks = [i == j for j in range(DP_RAINBOW_HUE_SECTORS)]
+
+    rgb[masks[0], 0] = 1
+    rgb[masks[0], 1] = t[masks[0]]
+
+    rgb[masks[1], 0] = q[masks[1]]
+    rgb[masks[1], 1] = 1
+
+    rgb[masks[2], 1] = 1
+    rgb[masks[2], 2] = t[masks[2]]
+
+    rgb[masks[3], 1] = q[masks[3]]
+    rgb[masks[3], 2] = 1
+
+    rgb[masks[4], 0] = t[masks[4]]
+    rgb[masks[4], 2] = 1
+
+    rgb[masks[5], 0] = 1
+    rgb[masks[5], 2] = q[masks[5]]
+
+    rgb_int = (rgb * 255).astype(np.uint8)
+
+    colors = [rl.Color(r, g, b, DP_RAINBOW_ALPHA) for r, g, b in rgb_int]
+
+    self._dp_ui_rainbow_gradient = Gradient(
+      start=(0.0, 1.0),
+      end=(0.0, 0.0),
+      colors=colors,
+      stops=gradient_stops.tolist(),
+    )
