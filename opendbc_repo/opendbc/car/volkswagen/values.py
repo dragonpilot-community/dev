@@ -200,6 +200,7 @@ class VolkswagenMLBPlatformConfig(PlatformConfig):
   def init(self):
     self.flags |= VolkswagenFlags.MLB
 
+  PQSteeringPatch = 2 ** 10
 
 @dataclass
 class VolkswagenMQBPlatformConfig(PlatformConfig):
