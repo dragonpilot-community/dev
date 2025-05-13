@@ -14,6 +14,7 @@ from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.long_mpc import T_IDX
 from openpilot.selfdrive.controls.lib.drive_helpers import CONTROL_N, get_accel_from_plan
 from openpilot.selfdrive.car.cruise import V_CRUISE_MAX, V_CRUISE_UNSET
 from openpilot.common.swaglog import cloudlog
+from dragonpilot.selfdrive.controls.lib.aem import AEM
 
 LON_MPC_STEP = 0.2  # first step is 0.2s
 A_CRUISE_MAX_VALS = [1.6, 1.2, 0.8, 0.6]
@@ -27,6 +28,7 @@ _A_TOTAL_MAX_V = [1.7, 3.2]
 _A_TOTAL_MAX_BP = [20., 40.]
 
 class DPFlags:
+  AEM = 2
   pass
 
 def get_max_accel(v_ego):
@@ -70,6 +72,7 @@ class LongitudinalPlanner:
     self.a_desired_trajectory = np.zeros(CONTROL_N)
     self.j_desired_trajectory = np.zeros(CONTROL_N)
     self.solverExecutionTime = 0.0
+    self.aem = AEM()
 
   @staticmethod
   def parse_model(model_msg):
@@ -93,6 +96,10 @@ class LongitudinalPlanner:
 
   def update(self, sm, dp_flags = 0):
     mode = 'blended' if sm['selfdriveState'].experimentalMode else 'acc'
+
+    if dp_flags & DPFlags.AEM:
+      self.aem.update_states(model_msg=sm['modelV2'], radar_msg=sm['radarState'], v_ego=sm['carState'].vEgo)
+      mode = self.aem.get_mode(mode)
 
     if len(sm['carControl'].orientationNED) == 3:
       accel_coast = get_coast_accel(sm['carControl'].orientationNED[1])
