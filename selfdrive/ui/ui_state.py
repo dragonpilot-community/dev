@@ -55,6 +55,7 @@ class UIState:
         "carControl",
         "liveParameters",
         "rawAudioData",
+        "liveTracks", # dp - for dp_ui_lead
       ]
     )
 
@@ -84,6 +85,9 @@ class UIState:
     # Callbacks
     self._offroad_transition_callbacks: list[Callable[[], None]] = []
     self._engaged_transition_callbacks: list[Callable[[], None]] = []
+
+    # dp
+    self.dp_ui_lead = int(self.params.get("dp_ui_lead") or 0)
 
     self.update_params()
 
