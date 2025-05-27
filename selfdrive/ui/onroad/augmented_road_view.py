@@ -30,6 +30,12 @@ WIDE_CAM_MAX_SPEED = 10.0  # m/s (22 mph)
 ROAD_CAM_MIN_SPEED = 15.0  # m/s (34 mph)
 INF_POINT = np.array([1000.0, 0.0, 0.0])
 
+# dp
+DP_INDICATOR_BLINK_RATE_FAST = int(gui_app.target_fps * 0.25)
+DP_INDICATOR_BLINK_RATE_STD = int(gui_app.target_fps * 0.5)
+DP_INDICATOR_COLOR_BSM = rl.Color(255, 255, 0, 255)
+DP_INDICATOR_COLOR_BLINKER = rl.Color(0, 255, 0, 255)
+
 
 class AugmentedRoadView(CameraView):
   def __init__(self, stream_type: VisionStreamType = VisionStreamType.VISION_STREAM_ROAD):
@@ -49,6 +55,14 @@ class AugmentedRoadView(CameraView):
     self.alert_renderer = AlertRenderer()
     self.driver_state_renderer = DriverStateRenderer()
 
+    # DP border indicator
+    self._dp_indicator_show_left = False
+    self._dp_indicator_show_right = False
+    self._dp_indicator_count_left = 0
+    self._dp_indicator_count_right = 0
+    self._dp_indicator_color_left = rl.Color(0, 0, 0, 0)
+    self._dp_indicator_color_right = rl.Color(0, 0, 0, 0)
+
     # debug
     self._pm = messaging.PubMaster(['uiDebug'])
 
@@ -58,6 +72,7 @@ class AugmentedRoadView(CameraView):
     if not ui_state.started:
       return
 
+    self._update_dp_indicator_states(ui_state.sm)
     self._switch_stream_if_needed(ui_state.sm)
 
     # Update calibration before rendering
@@ -118,6 +133,14 @@ class AugmentedRoadView(CameraView):
     border_rect = rl.Rectangle(rect.x + UI_BORDER_SIZE, rect.y + UI_BORDER_SIZE,
                                rect.width - 2 * UI_BORDER_SIZE, rect.height - 2 * UI_BORDER_SIZE)
     rl.draw_rectangle_rounded_lines_ex(border_rect, border_roundness, 10, UI_BORDER_SIZE, border_color)
+
+    # dp - Side indicators
+    indicator_y = int(rect.y+4*UI_BORDER_SIZE)
+    indicator_height = int(rect.height-8*UI_BORDER_SIZE)
+    if self._dp_indicator_show_left:
+      rl.draw_rectangle(int(rect.x), indicator_y, UI_BORDER_SIZE, indicator_height, self._dp_indicator_color_left)
+    if self._dp_indicator_show_right:
+      rl.draw_rectangle(int(rect.x + rect.width-UI_BORDER_SIZE), indicator_y, UI_BORDER_SIZE, indicator_height, self._dp_indicator_color_right)
 
   def _switch_stream_if_needed(self, sm):
     if sm['selfdriveState'].experimentalMode and WIDE_CAM in self.available_streams:
@@ -217,6 +240,39 @@ class AugmentedRoadView(CameraView):
 
     return self._cached_matrix
 
+  def _update_dp_indicator_side_state(self, blinker_state, bsm_state, show_prev, count_prev):
+    show = show_prev
+    count = count_prev
+    color = rl.Color(0, 0, 0, 0)
+
+    if not blinker_state and not bsm_state:
+      show = False
+      count = 0
+    else:
+      count += 1
+
+    if bsm_state and blinker_state:
+      show = not show if count % DP_INDICATOR_BLINK_RATE_FAST == 0 else show
+      color = DP_INDICATOR_COLOR_BSM
+    elif blinker_state:
+      show = not show if count % DP_INDICATOR_BLINK_RATE_STD == 0 else show
+      color = DP_INDICATOR_COLOR_BLINKER
+    elif bsm_state:
+      show = True
+      color = DP_INDICATOR_COLOR_BSM
+    else:
+      show = False
+
+    return show, count, color
+
+  def _update_dp_indicator_states(self, sm):
+    cs = sm['carState']
+    self._dp_indicator_show_left, self._dp_indicator_count_left, self._dp_indicator_color_left = \
+      self._update_dp_indicator_side_state(cs.leftBlinker, cs.leftBlindspot,
+                                           self._dp_indicator_show_left, self._dp_indicator_count_left)
+    self._dp_indicator_show_right, self._dp_indicator_count_right, self._dp_indicator_color_right = \
+      self._update_dp_indicator_side_state(cs.rightBlinker, cs.rightBlindspot,
+                                           self._dp_indicator_show_right, self._dp_indicator_count_right)
 
 if __name__ == "__main__":
   gui_app.init_window("OnRoad Camera View")
