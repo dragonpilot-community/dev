@@ -31,6 +31,7 @@ class CarController(CarControllerBase):
     self.eps_timer_soft_disable_alert = False
     self.hca_frame_timer_running = 0
     self.hca_frame_same_torque = 0
+    self.dp_avoid_eps_lockout = CP.flags & VolkswagenFlags.AVOID_EPS_LOCKOUT
 
   def update(self, CC, CS, now_nanos):
     actuators = CC.actuators
@@ -50,7 +51,13 @@ class CarController(CarControllerBase):
       # of HCA disabled; this is done whenever output happens to be zero.
 
       if CC.latActive:
-        new_torque = int(round(actuators.torque * self.CCP.STEER_MAX))
+        if self.dp_avoid_eps_lockout:
+          #根據速度縮放new_torque扭力上限
+          torque_scale = np.interp(CS.out.vEgo, [0.4, 3.5, 4.0], [0.8, 0.95, 1.0])
+          scaled_steer_max = self.CCP.STEER_MAX * torque_scale
+          new_torque = int(round(actuators.torque * scaled_steer_max))
+        else:
+          new_torque = int(round(actuators.torque * self.CCP.STEER_MAX))
         apply_torque = apply_driver_steer_torque_limits(new_torque, self.apply_torque_last, CS.out.steeringTorque, self.CCP)
         self.hca_frame_timer_running += self.CCP.STEER_STEP
         if self.apply_torque_last == apply_torque:

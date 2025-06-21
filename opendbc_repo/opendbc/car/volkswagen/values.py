@@ -200,6 +200,7 @@ class VolkswagenMLBPlatformConfig(PlatformConfig):
   def init(self):
     self.flags |= VolkswagenFlags.MLB
 
+  AVOID_EPS_LOCKOUT = 2 ** 10
 
 @dataclass
 class VolkswagenMQBPlatformConfig(PlatformConfig):

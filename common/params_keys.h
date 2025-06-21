@@ -162,4 +162,5 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"dp_dev_tethering", {PERSISTENT, BOOL, "0"}},
     {"dp_ui_mici", {PERSISTENT, BOOL, "0"}},
     {"dp_lat_offset_cm", {PERSISTENT, INT, "0"}},
+    {"dp_vag_avoid_eps_lockout", {PERSISTENT, BOOL, "0"}},
 };
