@@ -20,6 +20,7 @@ from openpilot.system.athena.registration import register, UNREGISTERED_DONGLE_I
 from openpilot.common.swaglog import cloudlog, add_file_handler
 from openpilot.system.version import get_build_metadata
 from openpilot.system.hardware.hw import Paths
+import time
 
 
 def manager_init() -> None:
@@ -125,6 +126,15 @@ def manager_thread() -> None:
   ensure_running(managed_processes.values(), False, params=params, CP=sm['carParams'], not_run=ignore)
 
   started_prev = False
+
+  dp_dev_delay_time_started: float = 0.
+  dp_dev_delay_loggerd = int(params.get('dp_dev_delay_loggerd') or 0)
+
+  # Dictionary of processes to be delayed [process_name: delay_seconds]
+  dp_dev_delay_start_times: dict[str, float] = {
+    'loggerd': dp_dev_delay_loggerd,
+    'encoderd': dp_dev_delay_loggerd
+  }
   ignition_prev = False
 
   while True:
@@ -145,10 +155,22 @@ def manager_thread() -> None:
     if started != started_prev:
       write_onroad_params(started, params)
 
+    dp_ignore: list[str] = []
+    if started and not started_prev:
+      dp_dev_delay_time_started = time.monotonic()
+    elif not started and started_prev:
+      dp_dev_delay_time_started = 0.
+
+    if dp_dev_delay_time_started > 0.:
+      cur_time = time.monotonic()
+      for name, delay_time in dp_dev_delay_start_times.items():
+        if cur_time - dp_dev_delay_time_started < delay_time: # type: ignore
+          dp_ignore.append(name)
+
     started_prev = started
     ignition_prev = ignition
 
-    ensure_running(managed_processes.values(), started, params=params, CP=sm['carParams'], not_run=ignore)
+    ensure_running(managed_processes.values(), started, params=params, CP=sm['carParams'], not_run=list(set(ignore) | set(dp_ignore)))
 
     running = ' '.join("{}{}\u001b[0m".format("\u001b[32m" if p.proc.is_alive() else "\u001b[31m", p.name)
                        for p in managed_processes.values() if p.proc)
