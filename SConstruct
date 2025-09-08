@@ -243,6 +243,7 @@ Export('messaging')
 
 # Build other submodules
 SConscript(['panda/SConscript'])
+SConscript(['panda_tici/SConscript'])
 
 # Build rednose library
 SConscript(['rednose/SConscript'])
