@@ -34,6 +34,17 @@ MAX_STEER_RATE_FRAMES = 18  # tx control frames needed before torque can be cut
 # EPS allows user torque above threshold for 50 frames before permanently faulting
 MAX_USER_TORQUE = 500
 
+# Lock / unlock door commands - Credit goes to AlexandreSato!
+from opendbc.car.common.conversions import Conversions as CV
+LOCK_SPEED = 20 * CV.KPH_TO_MS
+
+LOCK_UNLOCK_CAN_ID = 0x750
+UNLOCK_CMD = b'\x40\x05\x30\x11\x00\x40\x00\x00'
+LOCK_CMD = b'\x40\x05\x30\x11\x00\x80\x00\x00'
+
+from cereal import car
+PARK = car.CarState.GearShifter.park
+DRIVE = car.CarState.GearShifter.drive
 
 def get_long_tune(CP, params):
   if CP.carFingerprint in TSS2_CAR:
@@ -77,6 +88,8 @@ class CarController(CarControllerBase):
     self.secoc_lta_message_counter = 0
     self.secoc_acc_message_counter = 0
     self.secoc_prev_reset_counter = 0
+
+    self.doors_locked = False
 
   def update(self, CC, CS, now_nanos):
     actuators = CC.actuators
@@ -318,6 +331,14 @@ class CarController(CarControllerBase):
     new_actuators.torqueOutputCan = apply_torque
     new_actuators.steeringAngleDeg = self.last_angle
     new_actuators.accel = self.accel
+
+    if self.CP.flags & ToyotaFlags.LOCK_CTRL.value:
+      if not self.doors_locked and CS.out.gearShifter == DRIVE and CS.out.vEgo >= LOCK_SPEED:
+        can_sends.append(CanData(LOCK_UNLOCK_CAN_ID, LOCK_CMD, 0))
+        self.doors_locked = True
+      elif self.doors_locked and CS.out.gearShifter == PARK:
+        can_sends.append(CanData(LOCK_UNLOCK_CAN_ID, UNLOCK_CMD, 0))
+        self.doors_locked = False
 
     self.frame += 1
     return new_actuators, can_sends

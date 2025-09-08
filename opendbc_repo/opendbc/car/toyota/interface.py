@@ -144,6 +144,10 @@ class CarInterface(CarInterfaceBase):
       if ret.flags & ToyotaFlags.HYBRID.value:
         ret.longitudinalActuatorDelay = 0.05
 
+    if dp_params & structs.DPFlags.ToyotaLockCtrl:
+      ret.flags |= ToyotaFlags.LOCK_CTRL.value
+      ret.safetyConfigs[0].safetyParam |= ToyotaSafetyFlags.LOCK_CTRL.value
+
     return ret
 
   @staticmethod
