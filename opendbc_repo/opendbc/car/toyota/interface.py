@@ -59,6 +59,16 @@ class CarInterface(CarInterfaceBase):
     if Ecu.hybrid in found_ecus:
       ret.flags |= ToyotaFlags.HYBRID.value
 
+    # 0x343 should not be present on bus 2 on cars other than TSS2_CAR unless we are re-routing DSU
+    dsu_bypass = False
+    if (0x343 in fingerprint[2] or 0x4CB in fingerprint[2]) and candidate not in TSS2_CAR:
+      print("----------------------------------------------")
+      print("dragonpilot: DSU_BYPASS detected!")
+      print("----------------------------------------------")
+      # rick - disable for now, breaks TOYOTA_AVALON_2019 model tests.
+      # dsu_bypass = True
+      # ret.flags |= ToyotaFlags.DSU_BYPASS.value
+
     if candidate == CAR.TOYOTA_PRIUS:
       stop_and_go = True
       # Only give steer angle deadzone to for bad angle sensor prius
@@ -122,7 +132,8 @@ class CarInterface(CarInterfaceBase):
     #  - TSS2 radar ACC cars (disables radar)
 
     ret.openpilotLongitudinalControl = (candidate in (TSS2_CAR - RADAR_ACC_CAR) or
-                                        bool(ret.flags & ToyotaFlags.DISABLE_RADAR.value))
+                                        bool(ret.flags & ToyotaFlags.DISABLE_RADAR.value) or \
+        dsu_bypass)
 
     ret.autoResumeSng = ret.openpilotLongitudinalControl and candidate in NO_STOP_TIMER_CAR
 
