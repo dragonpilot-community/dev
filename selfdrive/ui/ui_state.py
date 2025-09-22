@@ -85,6 +85,9 @@ class UIState:
     self._offroad_transition_callbacks: list[Callable[[], None]] = []
     self._engaged_transition_callbacks: list[Callable[[], None]] = []
 
+    # dp
+    self.dp_dev_disable_connect = self.params.get_bool("dp_dev_disable_connect")
+
     self.update_params()
 
   def add_offroad_transition_callback(self, callback: Callable[[], None]):

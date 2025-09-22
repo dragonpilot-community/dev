@@ -110,7 +110,8 @@ class Sidebar(Widget):
     self._recording_audio = ui_state.recording_audio
     self._update_network_status(device_state)
     self._update_temperature_status(device_state)
-    self._update_connection_status(device_state)
+    if not ui_state.dp_dev_disable_connect:
+      self._update_connection_status(device_state)
     self._update_panda_status()
 
   def _update_network_status(self, device_state):
@@ -200,7 +201,9 @@ class Sidebar(Widget):
     rl.draw_text_ex(self._font_regular, tr(self._net_type), text_pos, FONT_SIZE, 0, Colors.WHITE)
 
   def _draw_metrics(self, rect: rl.Rectangle):
-    metrics = [(self._temp_status, 338), (self._panda_status, 496), (self._connect_status, 654)]
+    metrics = [(self._temp_status, 338), (self._panda_status, 496)]
+    if not ui_state.dp_dev_disable_connect:
+      metrics.append((self._connect_status, 654))
 
     for metric, y_offset in metrics:
       self._draw_metric(rect, metric, rect.y + y_offset)
