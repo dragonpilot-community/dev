@@ -296,6 +296,12 @@ class ListItem(Widget):
     # Cached properties for performance
     self._prev_description: str | None = self.description
 
+  @property
+  def enabled(self) -> bool:
+    if self.action_item:
+      return self.action_item.enabled
+    return True
+
   def show_event(self):
     self._set_description_visible(False)
 
@@ -352,17 +358,20 @@ class ListItem(Widget):
     content_x = self._rect.x + ITEM_PADDING
     text_x = content_x
 
+    color = ITEM_TEXT_COLOR if self.enabled else ITEM_TEXT_VALUE_COLOR
+    icon_tint = rl.WHITE if self.enabled else ITEM_TEXT_VALUE_COLOR
+
     # Only draw title and icon for items that have them
     if self.title:
       # Draw icon if present
       if self.icon:
-        rl.draw_texture(self._icon_texture, int(content_x), int(self._rect.y + (ITEM_BASE_HEIGHT - self._icon_texture.width) // 2), rl.WHITE)
+        rl.draw_texture(self._icon_texture, int(content_x), int(self._rect.y + (ITEM_BASE_HEIGHT - self._icon_texture.width) // 2), icon_tint)
         text_x += ICON_SIZE + ITEM_PADDING
 
       # Draw main text
       text_size = measure_text_cached(self._font, self.title, ITEM_TEXT_FONT_SIZE)
       item_y = self._rect.y + (ITEM_BASE_HEIGHT - text_size.y) // 2
-      rl.draw_text_ex(self._font, self.title, rl.Vector2(text_x, item_y), ITEM_TEXT_FONT_SIZE, 0, ITEM_TEXT_COLOR)
+      rl.draw_text_ex(self._font, self.title, rl.Vector2(text_x, item_y), ITEM_TEXT_FONT_SIZE, 0, color)
 
     # Draw description if visible
     if self.description_visible:
@@ -526,7 +535,8 @@ class BaseSpinBoxAction(ItemAction, ABC):
     if label_width > 0:
       label_rect = rl.Rectangle(label_x, rect.y, label_width, rect.height)
       display_text = self._get_display_text()
-      gui_label(label_rect, display_text, font_size=ITEM_TEXT_FONT_SIZE, color=ITEM_TEXT_VALUE_COLOR,
+      color = ITEM_TEXT_VALUE_COLOR if is_enabled else ITEM_DESC_TEXT_COLOR
+      gui_label(label_rect, display_text, font_size=ITEM_TEXT_FONT_SIZE, color=color,
                 font_weight=FontWeight.NORMAL, alignment=rl.GuiTextAlignment.TEXT_ALIGN_CENTER,
                 alignment_vertical=rl.GuiTextAlignmentVertical.TEXT_ALIGN_MIDDLE)
 
