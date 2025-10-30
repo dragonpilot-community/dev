@@ -8,49 +8,16 @@ from openpilot.system.ui.widgets.list_view import multiple_button_item, toggle_i
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog, alert_dialog
 
-DESC_TOYOTA = {
-
-}
-
-DESC_VAG = {
-
-}
-
-DESC_MAZDA = {
-
-}
-
-DESC_LAT = {
-
-}
-
-DESC_LON = {
-
-}
-
-DESC_UI = {
-
-}
-
-DESC_DEV = {
-
-}
-
-DESC = {
-  "dp_dev_reset_conf": tr_noop("Reset dragonpilot settings to default and restart the device."),
-}
 
 class DragonpilotLayout(Widget):
   def __init__(self):
     super().__init__()
     self._params = Params()
     self._scroller: Scroller | None = None
-    self._list = []
     self._has_long_ctrl = False
     self._has_radar_unavailable = False
 
     self._toggles = {}
-    self._locked_toggles = set()
 
     if ui_state.CP is not None:
       self._has_long_ctrl = ui_state.CP.openpilotLongitudinalControl
@@ -68,121 +35,36 @@ class DragonpilotLayout(Widget):
     self._ui_toggles()
     self._device_toggles()
 
-    self._reset_dp_conf_btn = button_item(lambda: tr("Reset DP Settings"), lambda: tr("RESET"), lambda: tr(DESC['dp_dev_reset_conf']), callback=self._reset_dp_conf)
+    self._reset_dp_conf_btn = button_item(
+      lambda: tr("Reset DP Settings"),
+      lambda: tr("RESET"),
+      lambda: tr("Reset dragonpilot settings to default and restart the device."),
+      callback=self._reset_dp_conf)
+
     self._toggles['btn_reset_dp_conf'] = self._reset_dp_conf_btn
 
     self._scroller = Scroller(list(self._toggles.values()), line_separator=True, spacing=0)
 
-  def _add_toggle(self, param, title, desc, icon, needs_restart):
-      toggle = toggle_item(
-        title,
-        desc,
-        self._params.get_bool(param),
-        callback=lambda state, p=param: self._toggle_callback(state, p),
-        icon=icon,
-      )
-
-      try:
-        locked = self._params.get_bool(param + "Lock")
-      except UnknownKeyName:
-        locked = False
-      toggle.action_item.set_enabled(not locked)
-
-      # Make description callable for live translation
-      additional_desc = ""
-      if needs_restart and not locked:
-        additional_desc = tr("Changing this setting will restart openpilot if the car is powered on.")
-      toggle.set_description(lambda og_desc=toggle.description, add_desc=additional_desc: tr(og_desc) + (" " + tr(add_desc) if add_desc else ""))
-
-      # track for engaged state updates
-      if locked:
-        self._locked_toggles.add(param)
-
-      self._toggles[param] = toggle
-
   def _toyota_toggles(self):
-    self._toggles["title_toyota"] = simple_item(tr("### Toyota / Lexus ###"))
-    # create the toggle list
-    _toggle_defs = {
-
-    }
-
-    # process toggles
-    for param, (title, desc, icon, needs_restart) in _toggle_defs.items():
-      self._add_toggle(param=param, title=title, desc=desc, icon=icon, needs_restart=needs_restart)
+    self._toggles["title_toyota"] = simple_item(title=lambda: tr("### Toyota / Lexus ###"))
 
   def _vag_toggles(self):
-    self._toggles["title_vag"] = simple_item(tr("### VAG ###"))
-    # create the toggle list
-    _toggle_defs = {
-
-    }
-
-    # process toggles
-    for param, (title, desc, icon, needs_restart) in _toggle_defs.items():
-      self._add_toggle(param=param, title=title, desc=desc, icon=icon, needs_restart=needs_restart)
-    pass
+    self._toggles["title_vag"] = simple_item(title=lambda: tr("### VAG ###"))
 
   def _mazda_toggles(self):
-    self._toggles["title_mazda"] = simple_item(tr("### Mazda ###"))
-    # create the toggle list
-    _toggle_defs = {
-
-    }
-
-    # process toggles
-    for param, (title, desc, icon, needs_restart) in _toggle_defs.items():
-      self._add_toggle(param=param, title=title, desc=desc, icon=icon, needs_restart=needs_restart)
-    pass
+    self._toggles["title_mazda"] = simple_item(title=lambda: tr("### Mazda ###"))
 
   def _lat_toggles(self):
-    self._toggles["title_lat"] = simple_item(tr("### Lateral ###"))
-    # create the toggle list
-    _toggle_defs = {
-
-    }
-
-    # process toggles
-    for param, (title, desc, icon, needs_restart) in _toggle_defs.items():
-      self._add_toggle(param=param, title=title, desc=desc, icon=icon, needs_restart=needs_restart)
-    pass
+    self._toggles["title_lat"] = simple_item(title=lambda: tr("### Lateral ###"))
 
   def _lon_toggles(self):
-    self._toggles["title_lon"] = simple_item(tr("### Longitudinal ###"))
-    # create the toggle list
-    _toggle_defs = {
-
-    }
-
-    # process toggles
-    for param, (title, desc, icon, needs_restart) in _toggle_defs.items():
-      self._add_toggle(param=param, title=title, desc=desc, icon=icon, needs_restart=needs_restart)
-    pass
+    self._toggles["title_lon"] = simple_item(title=lambda: tr("### Longitudinal ###"))
 
   def _ui_toggles(self):
-    self._toggles["title_ui"] = simple_item(tr("### UI ###"))
-    # create the toggle list
-    _toggle_defs = {
-
-    }
-
-    # process toggles
-    for param, (title, desc, icon, needs_restart) in _toggle_defs.items():
-      self._add_toggle(param=param, title=title, desc=desc, icon=icon, needs_restart=needs_restart)
-    pass
+    self._toggles["title_ui"] = simple_item(title=lambda: tr("### UI ###"))
 
   def _device_toggles(self):
-    self._toggles["title_dev"] = simple_item(tr("### Device ###"))
-    # create the toggle list
-    _toggle_defs = {
-
-    }
-
-    # process toggles
-    for param, (title, desc, icon, needs_restart) in _toggle_defs.items():
-      self._add_toggle(param=param, title=title, desc=desc, icon=icon, needs_restart=needs_restart)
-    pass
-
+    self._toggles["title_dev"] = simple_item(title=lambda: tr("### Device ###"))
 
   def _reset_dp_conf(self):
     def reset_dp_conf(result: int):
@@ -194,7 +76,6 @@ class DragonpilotLayout(Widget):
     dialog = ConfirmDialog(tr("Are you sure you want to reset ALL DP SETTINGS to default?"), tr("Reset"))
     gui_app.set_modal_overlay(dialog, callback=reset_dp_conf)
 
-
   def show_event(self):
     self._scroller.show_event()
     self._update_toggles()
@@ -204,6 +85,3 @@ class DragonpilotLayout(Widget):
 
   def _render(self, rect):
     self._scroller.render(rect)
-
-  def _toggle_callback(self, state: bool, param: str):
-    pass
