@@ -114,9 +114,7 @@ class LongitudinalPlanner:
     if dp_flags & DPFlags.ACM:
       self.acm.enabled = True
       user_control = long_control_off if self.CP.openpilotLongitudinalControl else not sm['selfdriveState'].enabled
-      self.acm.update_states(sm['carControl'], sm['radarState'], user_control, v_ego, v_cruise)
-      if self.acm.active:
-        reset_state = True
+      self.acm.update_states(sm['carControl'], sm['radarState'], user_control, v_ego, v_cruise, accel_coast)
     else:
       self.acm.enabled = False
 
@@ -152,6 +150,9 @@ class LongitudinalPlanner:
 
     self.v_desired_trajectory = np.interp(CONTROL_N_T_IDX, T_IDXS_MPC, self.mpc.v_solution)
     self.a_desired_trajectory = np.interp(CONTROL_N_T_IDX, T_IDXS_MPC, self.mpc.a_solution)
+    # ACM
+    if self.acm.enabled and self.acm.active:
+      self.a_desired_trajectory = self.acm.update_a_desired_trajectory(self.a_desired_trajectory)
     self.j_desired_trajectory = np.interp(CONTROL_N_T_IDX, T_IDXS_MPC[:-1], self.mpc.j_solution)
 
     # TODO counter is only needed because radar is glitchy, remove once radar is gone
@@ -182,11 +183,10 @@ class LongitudinalPlanner:
     for idx in range(2):
       accel_clip[idx] = np.clip(accel_clip[idx], self.prev_accel_clip[idx] - 0.05, self.prev_accel_clip[idx] + 0.05)
     self.output_a_target = np.clip(output_a_target, accel_clip[0], accel_clip[1])
-    self.prev_accel_clip = accel_clip
-
     # ACM
     if self.acm.enabled and self.acm.active:
-      self.output_a_target = max(0.01, self.output_a_target)
+      self.output_a_target = self.acm.update_output_a_target(self.output_a_target)
+    self.prev_accel_clip = accel_clip
 
   def publish(self, sm, pm):
     plan_send = messaging.new_message('longitudinalPlan')

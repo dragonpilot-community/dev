@@ -16,31 +16,76 @@ for non-commercial purposes only, subject to the following conditions:
 THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
+import numpy as np
 
 CRUISE_RATIO = 0.98
-
-MIN_TTC = 3. # min TTC
-MIN_V_EGO = 8. # minimum speed
-MIN_DREL = 25.
+TTC_LIMIT = 3.5
+MIN_V_EGO = 8.5 # approx. 30 km/h
+SAFE_DIST_MIN = 20.0
+SAFE_DIST_COEFF = 1.2  # time gap multiplier
+MIN_BRAKE_ALLOW = -0.5
 
 
 class ACM:
   def __init__(self):
     self.enabled = False
-    self._is_speed_over_cruise = False
     self.active = False
+    self._is_speed_over_cruise = False
+    self._has_lead = False
+    self.accel_coast = 0.
+    self.debug = {}
 
-  def update_states(self, cs, rs, user_ctrl_lon, v_ego, v_cruise):
-    if not self.enabled:
-      self.active = False
+  def update_states(self, cc, rs, user_ctrl_lon, v_ego, v_cruise, accel_coast):
+    self.active = False
+    self.accel_coast = accel_coast
+    self._is_speed_over_cruise = v_ego > (v_cruise * CRUISE_RATIO)
+
+    # no orientation (e.g. pitch)
+    if not self.enabled or len(cc.orientationNED) != 3:
       return
 
-    self._is_speed_over_cruise = v_ego >= (v_cruise * CRUISE_RATIO)
-
     lead = rs.leadOne
-    lead_ttc = lead.dRel / v_ego if lead.status and v_ego > 0 else float('inf')
+    too_close = False
+    too_fast_close = False
 
-    self.active = not user_ctrl_lon and \
-                  self._is_speed_over_cruise and \
-                  v_ego > MIN_V_EGO and \
-                  (not lead.status or (lead.status and lead_ttc > MIN_TTC and lead.dRel > MIN_DREL))
+    if lead and lead.status:
+      # --- TTC Calc ---
+      v_rel = v_ego - lead.vLeadK if hasattr(lead, "vLeadK") else v_ego - (v_ego + lead.vRel)
+      lead_ttc = lead.dRel / max(v_rel, 0.1)
+      safe_dist = max(SAFE_DIST_MIN, v_ego * SAFE_DIST_COEFF)
+
+      too_close = lead.dRel < safe_dist
+      too_fast_close = lead_ttc < TTC_LIMIT or lead.vRel < -2.0
+
+      self.debug.update({
+        "dRel": lead.dRel,
+        "vRel": lead.vRel,
+        "lead_ttc": lead_ttc,
+        "safe_dist": safe_dist,
+        "too_close": too_close,
+        "too_fast_close": too_fast_close,
+      })
+    else:
+      self.debug.update({"lead": "none"})
+
+    # === core logic ===
+    self.active = (
+      self.enabled and
+      not user_ctrl_lon and
+      self._is_speed_over_cruise and
+      v_ego > MIN_V_EGO and
+      not too_close and
+      not too_fast_close
+    )
+
+  def update_a_desired_trajectory(self, a_desired_trajectory):
+    if not self.active:
+      return a_desired_trajectory
+    # smooth
+    return np.maximum(a_desired_trajectory, self.accel_coast)
+
+  def update_output_a_target(self, output_a_target):
+    if not self.active:
+      return output_a_target
+    # coast only
+    return max(output_a_target, self.accel_coast)
