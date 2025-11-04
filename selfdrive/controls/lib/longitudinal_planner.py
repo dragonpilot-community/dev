@@ -14,6 +14,8 @@ from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.long_mpc import T_IDX
 from openpilot.selfdrive.controls.lib.drive_helpers import CONTROL_N, get_accel_from_plan
 from openpilot.selfdrive.car.cruise import V_CRUISE_MAX, V_CRUISE_UNSET
 from openpilot.common.swaglog import cloudlog
+from dragonpilot.selfdrive.controls.lib.dtsc import DTSC
+
 
 A_CRUISE_MAX_VALS = [1.6, 1.2, 0.8, 0.6]
 A_CRUISE_MAX_BP = [0., 10.0, 25., 40.]
@@ -26,6 +28,7 @@ _A_TOTAL_MAX_V = [1.7, 3.2]
 _A_TOTAL_MAX_BP = [20., 40.]
 
 class DPFlags:
+  DTSC = 2 ** 2
   pass
 
 
@@ -66,6 +69,8 @@ class LongitudinalPlanner:
     self.v_desired_trajectory = np.zeros(CONTROL_N)
     self.a_desired_trajectory = np.zeros(CONTROL_N)
     self.j_desired_trajectory = np.zeros(CONTROL_N)
+    self.solverExecutionTime = 0.0
+    self.dtsc = DTSC()
 
   @staticmethod
   def parse_model(model_msg):
@@ -76,16 +81,20 @@ class LongitudinalPlanner:
       v = np.interp(T_IDXS_MPC, ModelConstants.T_IDXS, model_msg.velocity.x)
       a = np.interp(T_IDXS_MPC, ModelConstants.T_IDXS, model_msg.acceleration.x)
       j = np.zeros(len(T_IDXS_MPC))
+      # dp - for DTSC
+      yaw_rate = np.interp(T_IDXS_MPC, ModelConstants.T_IDXS, model_msg.orientationRate.z)
     else:
       x = np.zeros(len(T_IDXS_MPC))
       v = np.zeros(len(T_IDXS_MPC))
       a = np.zeros(len(T_IDXS_MPC))
       j = np.zeros(len(T_IDXS_MPC))
+      # dp - for DTSC
+      yaw_rate = np.zeros(len(T_IDXS_MPC))
     if len(model_msg.meta.disengagePredictions.gasPressProbs) > 1:
       throttle_prob = model_msg.meta.disengagePredictions.gasPressProbs[1]
     else:
       throttle_prob = 1.0
-    return x, v, a, j, throttle_prob
+    return x, v, a, j, throttle_prob, yaw_rate
 
   def update(self, sm, dp_flags = 0):
     if len(sm['carControl'].orientationNED) == 3:
@@ -120,7 +129,12 @@ class LongitudinalPlanner:
 
     # Prevent divergence, smooth in current v_ego
     self.v_desired_filter.x = max(0.0, self.v_desired_filter.update(v_ego))
+<<<<<<< HEAD
     _, _, _, _, throttle_prob = self.parse_model(sm['modelV2'])
+=======
+    x, v, a, j, throttle_prob, yaw_rate = self.parse_model(sm['modelV2'])
+    v = self.dtsc.get_v_limited(enabled=bool(dp_flags & DPFlags.DTSC), yaw_rate_pred=yaw_rate, v_pred=v)
+>>>>>>> bb30b53e77 (min-feat/lon/dtsc)
     # Don't clip at low speeds since throttle_prob doesn't account for creep
     self.allow_throttle = throttle_prob > ALLOW_THROTTLE_THRESHOLD or v_ego <= MIN_ALLOW_THROTTLE_SPEED
 
