@@ -24,6 +24,20 @@ from typing import List, Tuple
 # car head to radar
 DREL_OFFSET = -1.52
 
+
+# typically max lane width is 3.7m
+LANE_WIDTH = 3.8
+LANE_WIDTH_HALF = LANE_WIDTH/2
+
+LANE_CENTER_MIN_LAT = 0.
+LANE_CENTER_MAX_LAT = LANE_WIDTH_HALF
+LANE_CENTER_MIN_DIST = 5.
+
+LANE_SIDE_MIN_LAT = LANE_WIDTH_HALF
+LANE_SIDE_MAX_LAT = LANE_WIDTH_HALF + LANE_WIDTH
+LANE_SIDE_MIN_DIST = 10.
+
+
 # lat distance, typically max lane width is 3.7m
 MAX_LAT_DIST = 6.
 
@@ -87,17 +101,21 @@ class RadarInterface(RadarInterfaceBase):
         if not should_ignore and int(obj_class) == 0:
           should_ignore = True
 
-        # ignore closed objects, rely on vision
-        if not should_ignore and d_rel < MIN_DIST:
-          should_ignore = True
-
         # ignore oncoming objects
         # @todo remove this because it's always 0 ?
         if not should_ignore and int(dyn_prop) == IGNORE_OBJ_STATE:
           should_ignore = True
 
-        # ignore objects on left/right side
-        if not should_ignore and abs(y_rel) > MAX_LAT_DIST:
+        # far away lane object, ignore
+        if not should_ignore and abs(y_rel) > LANE_SIDE_MAX_LAT:
+          should_ignore = True
+
+        # close object, ignore, use vision
+        if not should_ignore and LANE_CENTER_MIN_LAT > abs(y_rel) > LANE_CENTER_MAX_LAT and d_rel < LANE_CENTER_MIN_DIST:
+          should_ignore = True
+
+        # close object, ignore, use vision
+        if not should_ignore and LANE_SIDE_MIN_LAT > abs(y_rel) > LANE_SIDE_MAX_LAT and d_rel < LANE_SIDE_MIN_DIST:
           should_ignore = True
 
         if not should_ignore and track_id not in self._pts_cache:
