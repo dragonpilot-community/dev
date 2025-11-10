@@ -16,101 +16,130 @@ for non-commercial purposes only, subject to the following conditions:
 THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
-# --- DTSC (Dynamic Turn Speed Control) ---
-#
-# This module limits the model's planned speed (`v_pred`) based on
-# predicted curvature (`predicted_yaw_rate`) to ensure safe cornering.
-#
-# It calculates the max safe speed for each point in the future plan
-# and overrides `v_pred` if it's found to be too aggressive.
-#
-# --- Tuning ---
-#
-# 1. grip_level
-#    Your main "aggression" knob.
-#    - Too slow in turns? Increase this (e.g., 0.9 -> 0.95).
-#    - Unsafe/scary in turns? Decrease this (e.g., 0.9 -> 0.85).
-#
-# 2. V_SAFETY_MARGIN_CURVE:
-#    The "buffer" (in m/s) subtracted from the max speed.
-#    - Too slow? Decrease these numbers.
-#    - Too fast? Increase these numbers.
-#
-# 3. BASE_LAT_ACCEL_CURVE:
-#    The core physics model of your car's grip (in m/s^2).
-#    - Only touch this if `grip_level=1.0` is still too slow/fast.
-#
-# -----------------------------------------------------------------
-
 import numpy as np
+from openpilot.selfdrive.modeld.constants import ModelConstants
+from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.long_mpc import T_IDXS as T_IDXS_MPC
+from openpilot.common.swaglog import cloudlog
 
-# --- Constants ---
-# these should have the same array length
-SPEED_POINTS = [5.0, 15.0, 25.0]         # m/s
-BASE_LAT_ACCEL_CURVE = [1.5, 2.5, 3.5]  # m/s^2
-V_SAFETY_MARGIN_CURVE = [0.8, 1.5, 2.2]  # m/s
-
-# --- Hysteresis ---
-# Frames to wait before activating / deactivating
-ACTIVATION_FRAMES = 5
-DEACTIVATION_FRAMES = 10
+# Physics constants
+COMFORT_LAT_G = 0.2  # g units - universal human comfort threshold
+BASE_LAT_ACC = COMFORT_LAT_G * 9.81  # ~2.0 m/s^2
+SAFETY_FACTOR = 0.9  # 10% safety margin on calculated speeds
+MIN_CURVE_DISTANCE = 5.0  # meters - minimum distance to react to curves
+MAX_DECEL = -2.0  # m/s^2 - maximum comfortable deceleration
 
 
 class DTSC:
-  def __init__(self, grip_level=0.9):
-    self.grip_level = grip_level
+  """
+  Dynamic Turn Speed Controller - Predictive curve speed management via MPC constraints.
+
+  Core physics: v_max = sqrt(lateral_acceleration / curvature) * safety_factor
+
+  Operation:
+  1. Scans predicted path for curvature (up to ~10 seconds ahead)
+  2. Calculates safe speed for each point using physics + comfort limits
+  3. Identifies critical points where current speed would exceed safe speed
+  4. Calculates required deceleration to reach safe speed at critical point
+  5. Provides deceleration as MPC constraint for smooth trajectory planning
+  """
+
+  def __init__(self, aggressiveness=1.0):
+    """
+    Initialize DTSC with user-adjustable aggressiveness.
+
+    Args:
+      aggressiveness: Factor to adjust lateral acceleration limit
+                     0.7 = 30% more conservative (slower in curves)
+                     1.0 = default balanced behavior
+                     1.3 = 30% more aggressive (faster in curves)
+    """
+    self.aggressiveness = np.clip(aggressiveness, 0.5, 1.5)
     self.active = False
+    self.debug_msg = ""
+    cloudlog.info(f"DTSC: Initialized with aggressiveness {self.aggressiveness:.2f}")
 
-    # Counters for hysteresis
-    self.activation_counter = 0
-    self.deactivation_counter = 0
+  def set_aggressiveness(self, value):
+    """Update aggressiveness factor (0.5 to 1.5)."""
+    self.aggressiveness = np.clip(value, 0.5, 1.5)
+    cloudlog.info(f"DTSC: Aggressiveness updated to {self.aggressiveness:.2f}")
 
-    # Pre-calculate the grip-scaled curve
-    self.scaled_lat_accel_curve = [x * self.grip_level for x in BASE_LAT_ACCEL_CURVE]
-
-  def get_v_limited(self, enabled: bool, v_pred: np.array, yaw_rate_pred: float):
+  def get_mpc_constraints(self, model_msg, v_ego, base_a_min, base_a_max):
     """
-    Limits predicted velocity array based on predicted curvature.
+    Calculate MPC acceleration constraints based on predicted path curvature.
+
+    Args:
+      model_msg: ModelDataV2 containing predicted path
+      v_ego: Current vehicle speed (m/s)
+      base_a_min: Default minimum acceleration constraint
+      base_a_max: Default maximum acceleration constraint
+
+    Returns:
+      (a_min_array, a_max_array): Modified constraints for each MPC timestep
     """
 
-    # Check if a limit is needed *at all* for this frame
-    should_activate = False
-    if enabled:
-      # Calculate max_lat_accel and margin as ARRAYS based on v_pred (How much G-force is safe?)
-      max_lat_accel_array = np.interp(v_pred, SPEED_POINTS, self.scaled_lat_accel_curve)
-      # (How much speed should we subtract?)
-      v_safety_margin_array = np.interp(v_pred, SPEED_POINTS, V_SAFETY_MARGIN_CURVE)
+    # Initialize with base constraints
+    a_min = np.ones(len(T_IDXS_MPC)) * base_a_min
+    a_max = np.ones(len(T_IDXS_MPC)) * base_a_max
 
-      # Calculate predicted curvature
-      curvature_pred = yaw_rate_pred / np.clip(v_pred, 0.3, 100.0)
+    # Validate model data
+    if not self._is_model_data_valid(model_msg):
+      self.active = False
+      return a_min, a_max
 
-      # Calculate max speed for that curvature
-      v_max_curvature = np.sqrt(max_lat_accel_array / (np.abs(curvature_pred) + 1e-3))
+    # Extract predictions for MPC horizon
+    v_pred = np.interp(T_IDXS_MPC, ModelConstants.T_IDXS, model_msg.velocity.x)
+    turn_rates = np.interp(T_IDXS_MPC, ModelConstants.T_IDXS, model_msg.orientationRate.z)
+    positions = np.interp(T_IDXS_MPC, ModelConstants.T_IDXS, model_msg.position.x)
 
-      # Apply safety margin and clip
-      v_max = np.clip(v_max_curvature - v_safety_margin_array, 0.0, 100.0)
+    # Calculate curvature (turn_rate / velocity)
+    curvatures = np.abs(turn_rates / np.clip(v_pred, 1.0, 100.0))
 
-      # Limit the planned speed
-      v_limited = np.minimum(v_pred, v_max)
+    # Calculate safe speeds
+    lat_acc_limit = BASE_LAT_ACC * self.aggressiveness
+    safe_speeds = np.sqrt(lat_acc_limit / (curvatures + 1e-6)) * SAFETY_FACTOR
 
-      # Check if we *should* be active
-      should_activate = np.any(v_limited < v_pred)
+    # Find speed violations
+    speed_excess = v_pred - safe_speeds
+    if np.all(speed_excess <= 0):
+      self._deactivate()
+      return a_min, a_max
 
-    else:
-      # Not enabled, just return the original plan
-      v_limited = v_pred
-      should_activate = False
+    # Find critical point (maximum speed excess)
+    critical_idx = np.argmax(speed_excess)
+    critical_distance = positions[critical_idx]
+    critical_safe_speed = safe_speeds[critical_idx]
 
-    if should_activate:
-      self.deactivation_counter = 0
-      self.activation_counter = min(self.activation_counter + 1, ACTIVATION_FRAMES)
-      if self.activation_counter == ACTIVATION_FRAMES:
-        self.active = True
-    else:
-      self.activation_counter = 0
-      self.deactivation_counter = min(self.deactivation_counter + 1, DEACTIVATION_FRAMES)
-      if self.deactivation_counter == DEACTIVATION_FRAMES:
-        self.active = False
+    # Only act if we have sufficient distance
+    if critical_distance <= MIN_CURVE_DISTANCE:
+      self._deactivate()
+      return a_min, a_max
 
-    # Only return the limited speeds if we are *actually* active
-    return v_limited if self.active else v_pred
+    # Calculate required deceleration: a = (v_f^2 - v_i^2) / (2*d)
+    required_decel = (critical_safe_speed**2 - v_ego**2) / (2 * critical_distance)
+    required_decel = max(required_decel, MAX_DECEL)
+
+    # Apply constraint progressively until critical point
+    for i in range(len(T_IDXS_MPC)):
+      t = T_IDXS_MPC[i]
+      distance_at_t = v_ego * t + 0.5 * required_decel * t**2
+
+      if distance_at_t < critical_distance:
+        a_max[i] = min(a_max[i], required_decel)
+
+    # Update status
+    self.active = True
+    self.debug_msg = f"Curve in {critical_distance:.0f}m → {critical_safe_speed*3.6:.0f} km/h"
+    cloudlog.info(f"DTSC: {self.debug_msg} (aggr={self.aggressiveness:.1f})")
+
+    return a_min, a_max
+
+  def _is_model_data_valid(self, model_msg):
+    """Check if model message contains valid prediction data."""
+    return (len(model_msg.position.x) == ModelConstants.IDX_N and
+            len(model_msg.velocity.x) == ModelConstants.IDX_N and
+            len(model_msg.orientationRate.z) == ModelConstants.IDX_N)
+
+  def _deactivate(self):
+    """Clear active state and debug message."""
+    self.active = False
+    self.debug_msg = ""
