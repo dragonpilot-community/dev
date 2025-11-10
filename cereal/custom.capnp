@@ -16,8 +16,7 @@ struct CustomReserved0 @0x81c2f05a394cf4af {
 struct CustomReserved1 @0xaedffd8f31e7b55d {
 }
 
-struct LongitudinalPlanExt @0xf35cc4560bbf6ec2 {
-  acmActive @0 :Bool;
+struct CustomReserved2 @0xf35cc4560bbf6ec2 {
 }
 
 struct CustomReserved3 @0xda96579883444c35 {
