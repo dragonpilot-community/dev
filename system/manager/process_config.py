@@ -55,8 +55,8 @@ def only_onroad(started: bool, params: Params, CP: car.CarParams) -> bool:
 def only_offroad(started: bool, params: Params, CP: car.CarParams) -> bool:
   return not started
 
-def disable_connect(started: bool, params: Params, CP: car.CarParams) -> bool:
-  return params.get_bool("dp_dev_disable_connect")
+def comma_connect(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return not params.get_bool("dp_dev_disable_connect")
 
 def or_(*fns):
   return lambda *args: operator.or_(*(fn(*args) for fn in fns))
@@ -65,7 +65,7 @@ def and_(*fns):
   return lambda *args: operator.and_(*(fn(*args) for fn in fns))
 
 procs = [
-  DaemonProcess("manage_athenad", "system.athena.manage_athenad", "AthenadPid", enabled=not disable_connect),
+  DaemonProcess("manage_athenad", "system.athena.manage_athenad", "AthenadPid"),
 
   NativeProcess("loggerd", "system/loggerd", ["./loggerd"], logging),
   NativeProcess("encoderd", "system/loggerd", ["./encoderd"], only_onroad),
@@ -107,7 +107,7 @@ procs = [
   PythonProcess("hardwared", "system.hardware.hardwared", always_run),
   PythonProcess("tombstoned", "system.tombstoned", always_run, enabled=not PC),
   PythonProcess("updated", "system.updated.updated", only_offroad, enabled=not PC),
-  PythonProcess("uploader", "system.loggerd.uploader", always_run, enabled=not disable_connect),
+  PythonProcess("uploader", "system.loggerd.uploader", comma_connect and always_run),
   PythonProcess("statsd", "system.statsd", always_run),
   PythonProcess("feedbackd", "selfdrive.ui.feedback.feedbackd", only_onroad),
 

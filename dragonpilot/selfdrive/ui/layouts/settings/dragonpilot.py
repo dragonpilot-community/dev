@@ -188,13 +188,6 @@ class DragonpilotLayout(Widget):
         "default": setting.get("default")
       }
 
-    self._toggles["dp_dev_disable_connect"] = toggle_item(
-      title=lambda: tr("Disable Comma Connect"),
-      description=lambda: tr("Disable Comma connect service if you do not wish to upload / being tracked by the service."),
-      initial_state=self._params.get_bool("dp_dev_disable_connect"),
-      callback=lambda val: self._params.put_bool("dp_dev_disable_connect", val),
-    )
-
   def _reset_dp_conf(self):
     def reset_dp_conf(result: int):
       if result != DialogResult.CONFIRM:
