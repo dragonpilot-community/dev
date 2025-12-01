@@ -106,6 +106,14 @@ class TogglesLayout(Widget):
       ),
     }
 
+    # dp
+    self._toggle_defs["dp_ui_mici"] = (
+      lambda: tr("MICI UI"),
+      tr("Enable MICI (comma four) UI layout.<br>Note: DP settings are unavailable in this mode."),
+      "",
+      False,
+    )
+
     self._long_personality_setting = multiple_button_item(
       lambda: tr("Driving Personality"),
       lambda: tr(DESCRIPTIONS["LongitudinalPersonality"]),

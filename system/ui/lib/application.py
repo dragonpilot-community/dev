@@ -20,6 +20,7 @@ from openpilot.common.swaglog import cloudlog
 from openpilot.system.hardware import HARDWARE, PC
 from openpilot.system.ui.lib.multilang import multilang
 from openpilot.common.realtime import Ratekeeper
+from openpilot.common.params import Params
 
 _DEFAULT_FPS = int(os.getenv("FPS", {'tizi': 20}.get(HARDWARE.get_device_type(), 60)))
 FPS_LOG_INTERVAL = 5  # Seconds between logging FPS drops
@@ -194,13 +195,14 @@ class GuiApplication:
     self._set_log_callback()
 
     self._fonts: dict[FontWeight, rl.Font] = {}
-    self._width = width if width is not None else GuiApplication._default_width()
-    self._height = height if height is not None else GuiApplication._default_height()
+    dp_ui_mici = Params().get_bool("dp_ui_mici")
+    self._width = width if width is not None else GuiApplication._default_width(dp_ui_mici)
+    self._height = height if height is not None else GuiApplication._default_height(dp_ui_mici)
 
     if PC and os.getenv("SCALE") is None:
       self._scale = self._calculate_auto_scale()
     else:
-      self._scale = SCALE
+      self._scale = 4.0 if dp_ui_mici else SCALE
 
     # Scale, then ensure dimensions are even
     self._scaled_width = int(self._width * self._scale)
@@ -803,12 +805,13 @@ class GuiApplication:
     return max(0.3, min(w / self._width, h / self._height) * 0.95)
 
   @staticmethod
-  def _default_width() -> int:
-    return 2160 if GuiApplication.big_ui() else 536
+  def _default_width(dp_ui_four: bool = False) -> int:
+    return 536 if dp_ui_four else 2160 if GuiApplication.big_ui() else 536
 
   @staticmethod
-  def _default_height() -> int:
-    return 1080 if GuiApplication.big_ui() else 240
+  def _default_height(dp_ui_four: bool = False) -> int:
+    return 240 if dp_ui_four else 1080 if GuiApplication.big_ui() else 240
+
 
   @staticmethod
   def big_ui() -> bool:

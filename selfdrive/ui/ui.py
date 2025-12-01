@@ -7,6 +7,7 @@ from openpilot.system.ui.lib.application import gui_app
 from openpilot.selfdrive.ui.layouts.main import MainLayout
 from openpilot.selfdrive.ui.mici.layouts.main import MiciMainLayout
 from openpilot.selfdrive.ui.ui_state import ui_state
+from openpilot.common.params import Params
 
 BIG_UI = gui_app.big_ui()
 
@@ -16,7 +17,7 @@ def main():
   config_realtime_process(0, 51)
 
   gui_app.init_window("UI")
-  if BIG_UI:
+  if BIG_UI and not Params().get_bool("dp_ui_mici"):
     MainLayout()
   else:
     MiciMainLayout()
