@@ -35,6 +35,12 @@ SETTINGS = [
     "title": "Longitudinal",
     "condition": "openpilotLongitudinalControl",
     "settings": [
+      {
+        "key": "dp_lon_acm",
+        "type": "toggle_item",
+        "title": "Enable Adaptive Coasting Mode (ACM)",
+        "description": "Adaptive Coasting Mode (ACM) reduces braking to allow smoother coasting when appropriate."
+      },
 
     ],
   },
