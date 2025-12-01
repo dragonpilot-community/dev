@@ -42,6 +42,13 @@ SETTINGS = [
     "title": "UI",
     "condition": "not MICI",
     "settings": [
+      {
+        "key": "dp_ui_rainbow",
+        "type": "toggle_item",
+        "title": "Rainbow Driving Path like Tesla",
+        "description": "Why not?",
+        "condition": "not MICI",
+      },
 
     ],
   },
