@@ -35,6 +35,12 @@ SETTINGS = [
     "title": "Longitudinal",
     "condition": "openpilotLongitudinalControl",
     "settings": [
+      {
+        "key": "dp_lon_aem",
+        "type": "toggle_item",
+        "title": "Adaptive Experimental Mode (AEM)",
+        "description": "Adaptive mode switcher between ACC and Blended based on driving context."
+      },
 
     ],
   },
