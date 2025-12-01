@@ -239,7 +239,3 @@ class DragonpilotLayout(Widget):
 
   def _render(self, rect):
     self._scroller.render(rect)
-
-  def _on_dp_lat_lca_speed_change(self, val):
-    self._params.put("dp_lat_lca_speed", int(val))
-    self._toggles['dp_lat_lca_auto_sec'].action_item.set_enabled(val > 0)
