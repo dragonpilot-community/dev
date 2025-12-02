@@ -41,6 +41,7 @@ class LeadVehicle:
   chevron: list[float] = field(default_factory=list)
   fill_alpha: int = 0
   # dp
+  v_rel: float = 0.0
   d_rel: float = 0.0
   x: float = 0.0
   y: float = 0.0
@@ -270,7 +271,7 @@ class ModelRenderer(Widget):
     glow = [(x + (sz * 1.35) + g_xo, y + sz + g_yo), (x, y - g_yo), (x - (sz * 1.35) - g_xo, y + sz + g_yo)]
     chevron = [(x + (sz * 1.25), y + sz), (x, y), (x - (sz * 1.25), y + sz)]
 
-    return LeadVehicle(glow=glow, chevron=chevron, fill_alpha=int(fill_alpha), d_rel=d_rel, x=x, y=y, sz=sz)
+    return LeadVehicle(glow=glow, chevron=chevron, fill_alpha=int(fill_alpha), d_rel=d_rel, x=x, y=y, sz=sz, v_rel=v_rel)
 
   def _draw_lane_lines(self):
     """Draw lane lines and road edges"""
@@ -328,12 +329,16 @@ class ModelRenderer(Widget):
       if ui_state.dp_ui_lead in [DpUiLeadMode.lead, DpUiLeadMode.all]:
         start_y = lead.y
 
+        car_state = ui_state.sm['carState']
+        # v
+        v = lead.v_rel + car_state.vEgo
+        v_str = f"{v * 3.6:.0f} kph" if ui_state.is_metric else f"{v * 2.237:.0f} mph"
         # d_rel
-        dist_str = f"{lead.d_rel:.1f}m" if ui_state.is_metric else f"{lead.d_rel * 3.28084:.1f}ft"
-        self._dp_paint_centered_lead_text(dist_str, 56, lead.x, start_y + lead.sz)
+        dist_str = f"{lead.d_rel:.1f} m" if ui_state.is_metric else f"{lead.d_rel * 3.28084:.1f} ft"
+
+        self._dp_paint_centered_lead_text(f"{v_str} | {dist_str}", 40, lead.x, start_y + lead.sz)
 
         # ttc
-        car_state = ui_state.sm['carState']
         ttc = (lead.d_rel / car_state.vEgo) if car_state.vEgo > 0 else float("NaN")
         if ttc < 5.:
           ttc_str = f"{ttc:.1f}s"
