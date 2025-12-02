@@ -8,6 +8,12 @@ SETTINGS = [
     "title": "Toyota / Lexus",
     "condition": "brand == 'toyota'",
     "settings": [
+      {
+        "key": "dp_toyota_tss1_sng",
+        "type": "toggle_item",
+        "title": "Enable TSS1 SnG Mod",
+        "description": ""
+      },
 
     ],
   },
