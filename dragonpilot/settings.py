@@ -15,6 +15,12 @@ SETTINGS = [
     "title": "VAG",
     "condition": "brand == 'volkswagen'",
     "settings": [
+      {
+        "key": "dp_vag_a0_sng",
+        "type": "toggle_item",
+        "title": "MQB A0 SnG Mod",
+        "description": ""
+      },
 
     ],
   },
