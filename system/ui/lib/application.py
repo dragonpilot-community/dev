@@ -20,7 +20,11 @@ from openpilot.common.swaglog import cloudlog
 from openpilot.system.hardware import HARDWARE, PC
 from openpilot.system.ui.lib.multilang import multilang
 from openpilot.common.realtime import Ratekeeper
-from openpilot.common.params import Params
+
+try:
+  from openpilot.common.params import Params
+except ImportError:
+  Params = None
 
 _DEFAULT_FPS = int(os.getenv("FPS", {'tizi': 20}.get(HARDWARE.get_device_type(), 60)))
 FPS_LOG_INTERVAL = 5  # Seconds between logging FPS drops
@@ -195,7 +199,10 @@ class GuiApplication:
     self._set_log_callback()
 
     self._fonts: dict[FontWeight, rl.Font] = {}
-    dp_ui_mici = Params().get_bool("dp_ui_mici")
+    if Params is not None:
+      dp_ui_mici = Params().get_bool("dp_ui_mici")
+    else:
+      dp_ui_mici = False
     self._width = width if width is not None else GuiApplication._default_width(dp_ui_mici)
     self._height = height if height is not None else GuiApplication._default_height(dp_ui_mici)
 
