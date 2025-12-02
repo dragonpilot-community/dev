@@ -15,6 +15,12 @@ SETTINGS = [
     "title": "VAG",
     "condition": "brand == 'volkswagen'",
     "settings": [
+      {
+        "key": "dp_vag_avoid_eps_lockout",
+        "type": "toggle_item",
+        "title": "Avoid EPS Lockout",
+        "description": ""
+      },
 
     ],
   },
