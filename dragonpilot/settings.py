@@ -15,6 +15,12 @@ SETTINGS = [
     "title": "VAG",
     "condition": "brand == 'volkswagen'",
     "settings": [
+      {
+        "key": "dp_vag_pq_steering_patch",
+        "type": "toggle_item",
+        "title": "PQ Steering Patch",
+        "description": ""
+      },
 
     ],
   },
