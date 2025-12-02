@@ -8,6 +8,12 @@ SETTINGS = [
     "title": "Toyota / Lexus",
     "condition": "brand == 'toyota'",
     "settings": [
+      {
+        "key": "dp_toyota_door_auto_lock_unlock",
+        "type": "toggle_item",
+        "title": "Door Auto Lock/Unlock",
+        "description": "Enable openpilot to auto-lock doors above 20 km/h and auto-unlock when shifting to Park."
+      },
 
     ],
   },
