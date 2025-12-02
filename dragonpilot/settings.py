@@ -8,6 +8,12 @@ SETTINGS = [
     "title": "Toyota / Lexus",
     "condition": "brand == 'toyota'",
     "settings": [
+      {
+        "key": "dp_toyota_stock_lon",
+        "type": "toggle_item",
+        "title": "Use Stock Longitudinal Control",
+        "description": ""
+      },
 
     ],
   },
