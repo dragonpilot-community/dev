@@ -215,6 +215,7 @@ typedef bool (*fwd_hook)(int bus_num, int addr);      // returns true if the mes
 typedef struct {
   safety_hook_init init;
   rx_hook rx;
+  rx_hook rx_ext;  // dp - optional hook for ALL valid messages (not just whitelisted)
   tx_hook tx;
   fwd_hook fwd;
   get_checksum_t get_checksum;

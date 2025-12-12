@@ -192,6 +192,11 @@ bool safety_rx_hook(const CANPacket_t *msg) {
     current_hooks->rx(msg);
   }
 
+  // dp - rx_ext hook for ALL valid messages (including non-whitelisted)
+  if (valid && (current_hooks->rx_ext != NULL)) {
+    current_hooks->rx_ext(msg);
+  }
+
   // Handles gas, brake, and regen paddle
   generic_rx_checks();
 
