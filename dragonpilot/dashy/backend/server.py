@@ -288,6 +288,59 @@ async def save_settings_values_api(request):
         traceback.print_exc()
         return web.json_response({'status': 'error', 'message': str(e)}, status=500)
 
+async def get_model_list_api(request):
+    """API endpoint to get the model list and current selection."""
+    try:
+        params = Params()
+        import json
+
+        # Get model list from dp_dev_model_list
+        model_list = {}
+        try:
+            model_list_raw = params.get("dp_dev_model_list")
+            if model_list_raw:
+                model_list = json.loads(model_list_raw)
+        except Exception as e:
+            logging.getLogger("web_ui").debug(f"Could not parse dp_dev_model_list: {e}")
+
+        # Get current selection from dp_dev_model_selected
+        selected_model = ""
+        try:
+            selected_raw = params.get("dp_dev_model_selected")
+            if selected_raw:
+                selected_model = selected_raw.decode('utf-8') if isinstance(selected_raw, bytes) else str(selected_raw)
+        except Exception as e:
+            logging.getLogger("web_ui").debug(f"Could not get dp_dev_model_selected: {e}")
+
+        return web.json_response({
+            'model_list': model_list,
+            'selected_model': selected_model
+        })
+    except Exception as e:
+        logging.getLogger("web_ui").error(f"Error fetching model list: {e}")
+        return web.json_response({'error': str(e)}, status=500)
+
+async def save_model_selection_api(request):
+    """API endpoint to save the selected model."""
+    try:
+        data = await request.json()
+        params = Params()
+
+        selected_model = data.get('selected_model', '')
+
+        # If empty or "[AUTO]", clear the param
+        if not selected_model or selected_model == "[AUTO]":
+            params.put("dp_dev_model_selected", "")
+            logging.getLogger("web_ui").info("Model selection cleared (AUTO mode)")
+        else:
+            params.put("dp_dev_model_selected", selected_model)
+            logging.getLogger("web_ui").info(f"Model selection saved: {selected_model}")
+
+        return web.json_response({'status': 'success'})
+    except Exception as e:
+        logging.getLogger("web_ui").error(f"Error saving model selection: {e}")
+        return web.json_response({'error': str(e)}, status=500)
+
 async def init_api(request):
     """API endpoint to provide initial data to the client."""
     try:
@@ -304,9 +357,15 @@ async def init_api(request):
         except Exception as e:
             logging.getLogger("web_ui").debug(f"Could not parse CarParams: {e}")
 
+        # dp_dev_dashy may not exist on all devices, default to True
+        try:
+            dp_dev_dashy = params.get_bool("dp_dev_dashy")
+        except Exception:
+            dp_dev_dashy = True
+
         return web.json_response({
             'is_metric': params.get_bool("IsMetric"),
-            'dp_dev_dashy': params.get_bool("dp_dev_dashy"),
+            'dp_dev_dashy': dp_dev_dashy,
             'openpilot_longitudinal_control': openpilot_longitudinal_control,
         })
     except Exception as e:
@@ -353,6 +412,8 @@ def setup_aiohttp_app(host: str, port: int, debug: bool):
     app.router.add_get("/api/manifest.m3u8", serve_manifest_api)
     app.router.add_get("/api/settings/config", get_settings_config_api)
     app.router.add_post("/api/settings/save", save_settings_values_api)
+    app.router.add_get("/api/models", get_model_list_api)
+    app.router.add_post("/api/models/select", save_model_selection_api)
 
     # Static files
     app.router.add_static('/media', path=DEFAULT_DIR, name='media', show_index=False, follow_symlinks=False)
