@@ -421,7 +421,7 @@ static safety_config toyota_init(uint16_t param) {
 
 // dp - rx_ext hook for optional messages (placeholder)
 static void toyota_rx_ext_hook(const CANPacket_t *msg) {
-  UNUSED(msg);
+  SAFETY_UNUSED(msg);
 }
 
 const safety_hooks toyota_hooks = {

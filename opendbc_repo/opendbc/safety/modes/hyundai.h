@@ -335,7 +335,7 @@ static safety_config hyundai_legacy_init(uint16_t param) {
 
 // dp - rx_ext hook for optional messages (placeholder)
 static void hyundai_rx_ext_hook(const CANPacket_t *msg) {
-  UNUSED(msg);
+  SAFETY_UNUSED(msg);
 }
 
 const safety_hooks hyundai_hooks = {
