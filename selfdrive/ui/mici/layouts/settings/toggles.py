@@ -5,7 +5,6 @@ from openpilot.selfdrive.ui.mici.widgets.button import BigParamControl, BigMulti
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.selfdrive.ui.layouts.settings.common import restart_needed_callback
 from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.system.hardware import HARDWARE
 
 PERSONALITY_TO_INT = log.LongitudinalPersonality.schema.enumerants
 
@@ -44,15 +43,6 @@ class TogglesLayoutMici(NavScroller):
       ("RecordAudio", record_mic),
       ("OpenpilotEnabledToggle", enable_openpilot),
     )
-
-    # dp - only append to tizi/tici
-    if not HARDWARE.get_device_type == 'mici':
-      dp_ui_mici = BigParamControl("MICI UI", "dp_ui_mici")
-      self._scroller.add_widget(dp_ui_mici)
-
-      temp_toggles = list(self._refresh_toggles)
-      temp_toggles.append(("dp_ui_mici", dp_ui_mici))
-      self._refresh_toggles = temp_toggles
 
     enable_openpilot.set_enabled(lambda: not ui_state.engaged)
     record_front.set_enabled(False if ui_state.params.get_bool("RecordFrontLock") else (lambda: not ui_state.engaged))
