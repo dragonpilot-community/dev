@@ -13,12 +13,12 @@ $Cxx.namespace("cereal");
 struct CustomReserved0 @0x81c2f05a394cf4af {
 }
 
-struct ModelExt @0xaedffd8f31e7b55d {
-  leftEdgeDetected @0 :Bool;
-  rightEdgeDetected @1 :Bool;
+struct CustomReserved1 @0xaedffd8f31e7b55d {
 }
 
-struct CustomReserved2 @0xf35cc4560bbf6ec2 {
+struct ModelExt @0xf35cc4560bbf6ec2 {
+  leftEdgeDetected @0 :Bool;
+  rightEdgeDetected @1 :Bool;
 }
 
 struct CustomReserved3 @0xda96579883444c35 {
