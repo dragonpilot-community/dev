@@ -98,14 +98,6 @@ class CarState(CarStateBase):
     ret.steeringRateDeg = cp.vl["STEER_ANGLE_SENSOR"]["STEER_RATE"]
     torque_sensor_angle_deg = cp.vl["STEER_TORQUE_SENSOR"]["STEER_ANGLE"]
 
-    if self.zss.enabled:
-      self.zss.set_values(can_parsers[Bus.zss])
-      if self.CP.carFingerprint in UNSUPPORTED_DSU_CAR:
-        main_on = cp.vl["DSU_CRUISE"]["MAIN_ON"] != 0
-      else:
-        main_on = cp.vl["PCM_CRUISE_2"]["MAIN_ON"] != 0
-      ret.steeringAngleDeg = self.zss.get_steering_angle_deg(main_on, cp.vl["PCM_CRUISE"]["CRUISE_ACTIVE"], ret.steeringAngleDeg)
-
     # On some cars, the angle measurement is non-zero while initializing
     if abs(torque_sensor_angle_deg) > 1e-3 and not bool(cp.vl["STEER_TORQUE_SENSOR"]["STEER_ANGLE_INITIALIZING"]):
       self.accurate_steer_angle_seen = True
@@ -127,6 +119,10 @@ class CarState(CarStateBase):
     ret.steeringTorqueEps = cp.vl["STEER_TORQUE_SENSOR"]["STEER_TORQUE_EPS"] * self.eps_torque_scale
     # we could use the override bit from dbc, but it's triggered at too high torque values
     ret.steeringPressed = abs(ret.steeringTorque) > STEER_THRESHOLD
+
+    if self.zss.enabled:
+      self.zss.set_values(can_parsers[Bus.zss])
+      ret.steeringAngleDeg = self.zss.get_steering_angle_deg(cp.vl["PCM_CRUISE"]["CRUISE_ACTIVE"], ret.steeringAngleDeg)
 
     # Check EPS LKA/LTA fault status
     ret.steerFaultTemporary = cp.vl["EPS_STATUS"]["LKA_STATE"] in TEMP_STEER_FAULTS
