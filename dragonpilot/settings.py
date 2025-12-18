@@ -38,8 +38,8 @@ SETTINGS = [
       {
         "key": "dp_lon_aem",
         "type": "toggle_item",
-        "title": "Adaptive Experimental Mode (AEM)",
-        "description": "Adaptive mode switcher between ACC and Blended based on driving context."
+        "title": lambda: tr("Adaptive Experimental Mode (AEM)"),
+        "description": lambda: tr("Adaptive mode switcher between ACC and Blended based on driving context."),
       },
 
     ],
