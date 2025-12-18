@@ -3,7 +3,7 @@ import os
 from openpilot.system.ui.widgets import Widget, DialogResult
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.widgets.scroller_tici import Scroller
-from openpilot.system.ui.lib.multilang import tr
+from dragonpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.widgets.list_view import toggle_item, simple_item, button_item, spin_button_item, double_spin_button_item, text_spin_button_item
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
@@ -51,7 +51,7 @@ class DragonpilotLayout(Widget):
     for i, section in enumerate(settings_data):
       if self._check_condition(section.get("condition")):
         formatted_title = f"### {section['title']} ###"
-        self._toggles[f"title_{i}"] = simple_item(title=lambda title=formatted_title: tr(title))
+        self._toggles[f"title_{i}"] = simple_item(title=formatted_title)
         for setting in section.get("settings", []):
           if self._check_condition(setting.get("condition")) and self._check_brands(setting.get("brands")):
             self._create_item(setting)
@@ -73,6 +73,10 @@ class DragonpilotLayout(Widget):
       return True  # No brand restriction, show for all
     return self._brand in brands
 
+  def _resolve(self, value):
+    """Resolve callable values (lambdas) to their actual values."""
+    return value() if callable(value) else value
+
   def _create_item(self, setting):
     key = setting["key"]
     item_type = setting["type"]
@@ -80,9 +84,10 @@ class DragonpilotLayout(Widget):
     if not factory:
       return
 
-    args = {"title": lambda title=setting["title"]: tr(title)}
+    # title and description support callables natively in ListItem
+    args = {"title": setting["title"]}
     if setting.get("description"):
-      args["description"] = lambda desc=setting["description"]: tr(desc)
+      args["description"] = setting["description"]
 
     param_name = setting.get("param_name") or key
 
@@ -162,16 +167,16 @@ class DragonpilotLayout(Widget):
       args["callback"] = combined_callback
 
     # D. Add other properties from JSON
-    for prop in ["min_val", "max_val", "step", "special_value_text"]:
+    for prop in ["min_val", "max_val", "step"]:
       if prop in setting:
         args[prop] = setting[prop]
+    # These properties don't support callables in the widgets, so resolve them
+    if "special_value_text" in setting:
+      args["special_value_text"] = self._resolve(setting["special_value_text"])
     if "suffix" in setting:
-      args["suffix"] = tr(setting["suffix"])
+      args["suffix"] = self._resolve(setting["suffix"])
     if "options" in setting:
-      opts = setting["options"]
-      if setting.get("tr_options"):
-        opts = [tr(o) for o in opts]
-      args["options"] = opts
+      args["options"] = [self._resolve(opt) for opt in setting["options"]]
 
     widget = factory(**args)
     self._toggles[key] = widget

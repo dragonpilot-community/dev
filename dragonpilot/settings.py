@@ -1,3 +1,5 @@
+from dragonpilot.system.ui.lib.multilang import tr
+
 SETTINGS = [
   {
     "title": "Toyota / Lexus",
