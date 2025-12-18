@@ -50,8 +50,8 @@ SETTINGS = [
       {
         "key": "dp_dev_dashy",
         "type": "toggle_item",
-        "title": "dashy HUD",
-        "description": "dashy - dragonpilot's all-in-one system hub for you.<br><br>Visit http://<device_ip>:5088 to access.<br><br>Enable this to use HUD feature (live streaming).",
+        "title": lambda: tr("dashy HUD"),
+        "description": lambda: tr("dashy - dragonpilot's all-in-one system hub for you.<br><br>Visit http://<device_ip>:5088 to access.<br><br>Enable this to use HUD feature (live streaming)."),
       },
 
     ],
