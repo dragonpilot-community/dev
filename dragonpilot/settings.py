@@ -11,7 +11,7 @@ SETTINGS = [
       {
         "key": "dp_toyota_tss1_sng",
         "type": "toggle_item",
-        "title": "Enable TSS1 SnG Mod",
+        "title": lambda: tr("Enable TSS1 SnG Mod"),
         "description": ""
       },
 
