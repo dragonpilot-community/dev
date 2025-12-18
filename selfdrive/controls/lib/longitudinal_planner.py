@@ -16,11 +16,7 @@ from openpilot.selfdrive.car.cruise import V_CRUISE_MAX, V_CRUISE_UNSET
 from openpilot.common.swaglog import cloudlog
 from dragonpilot.selfdrive.controls.lib.dtsc import DTSC
 
-<<<<<<< HEAD
 
-=======
-LON_MPC_STEP = 0.2  # first step is 0.2s
->>>>>>> f678adf7aa (2025-11-10: DTSC v2)
 A_CRUISE_MAX_VALS = [1.6, 1.2, 0.8, 0.6]
 A_CRUISE_MAX_BP = [0., 10.0, 25., 40.]
 CONTROL_N_T_IDX = ModelConstants.T_IDXS[:CONTROL_N]
@@ -129,16 +125,7 @@ class LongitudinalPlanner:
 
     # Prevent divergence, smooth in current v_ego
     self.v_desired_filter.x = max(0.0, self.v_desired_filter.update(v_ego))
-<<<<<<< HEAD
-<<<<<<< HEAD
-    _, _, _, _, throttle_prob = self.parse_model(sm['modelV2'])
-=======
-    x, v, a, j, throttle_prob, yaw_rate = self.parse_model(sm['modelV2'])
-    v = self.dtsc.get_v_limited(enabled=bool(dp_flags & DPFlags.DTSC), yaw_rate_pred=yaw_rate, v_pred=v)
->>>>>>> bb30b53e77 (min-feat/lon/dtsc)
-=======
     x, v, a, j, throttle_prob = self.parse_model(sm['modelV2'])
->>>>>>> f678adf7aa (2025-11-10: DTSC v2)
     # Don't clip at low speeds since throttle_prob doesn't account for creep
     self.allow_throttle = throttle_prob > ALLOW_THROTTLE_THRESHOLD or v_ego <= MIN_ALLOW_THROTTLE_SPEED
 
@@ -152,9 +139,6 @@ class LongitudinalPlanner:
 
     self.mpc.set_weights(prev_accel_constraint, personality=sm['selfdriveState'].personality)
     self.mpc.set_cur_state(self.v_desired_filter.x, self.a_desired)
-<<<<<<< HEAD
-    self.mpc.update(sm['radarState'], v_cruise, personality=sm['selfdriveState'].personality)
-=======
 
     # Apply DTSC curve speed constraints if enabled
     if dp_flags & DPFlags.DTSC:
@@ -170,7 +154,6 @@ class LongitudinalPlanner:
         self.mpc.params[i, 1] = min(accel_clip[1], a_max_dtsc[i])  # a_max
 
     self.mpc.update(sm['radarState'], v_cruise, x, v, a, j, personality=sm['selfdriveState'].personality)
->>>>>>> f678adf7aa (2025-11-10: DTSC v2)
 
     self.v_desired_trajectory = np.interp(CONTROL_N_T_IDX, T_IDXS_MPC, self.mpc.v_solution)
     self.a_desired_trajectory = np.interp(CONTROL_N_T_IDX, T_IDXS_MPC, self.mpc.a_solution)

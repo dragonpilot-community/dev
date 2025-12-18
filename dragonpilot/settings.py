@@ -38,8 +38,8 @@ SETTINGS = [
       {
         "key": "dp_lon_dtsc",
         "type": "toggle_item",
-        "title": "Dynamic Turn Speed Control (DTSC)",
-        "description": "DTSC automatically adjusts the vehicle's predicted speed based on upcoming road curvature and grip conditions.<br>Originally from the openpilot TACO branch."
+        "title": lambda: tr("Dynamic Turn Speed Control (DTSC)"),
+        "description": lambda: tr("DTSC automatically adjusts the vehicle's predicted speed based on upcoming road curvature and grip conditions.<br>Originally from the openpilot TACO branch."),
       },
 
     ],
