@@ -31,8 +31,8 @@ SETTINGS = [
       {
         "key": "dp_lat_road_edge_detection",
         "type": "toggle_item",
-        "title": "Road Edge Detection (RED)",
-        "description": "Block lane change assist when the system detects the road edge.<br>NOTE: This will show 'Car Detected in Blindspot' warning."
+        "title": lambda: tr("Road Edge Detection (RED)"),
+        "description": lambda: tr("Block lane change assist when the system detects the road edge.<br>NOTE: This will show 'Car Detected in Blindspot' warning."),
       },
 
     ],
