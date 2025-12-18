@@ -18,7 +18,7 @@ SETTINGS = [
       {
         "key": "dp_vag_avoid_eps_lockout",
         "type": "toggle_item",
-        "title": "Avoid EPS Lockout",
+        "title": lambda: tr("Avoid EPS Lockout"),
         "description": ""
       },
 
