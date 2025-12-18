@@ -45,16 +45,15 @@ SETTINGS = [
       {
         "key": "dp_ui_lead",
         "type": "text_spin_button_item",
-        "title": "Display Lead Stats",
-        "description": "Display the statistics of lead car and/or radar tracking points.<br>Lead: Lead stats only<br>Radar: Radar tracking point stats only<br>All: Lead and Radar stats<br>NOTE: Radar option only works on certain vehicle models.",
+        "title": lambda: tr("Display Lead Stats"),
+        "description": lambda: tr("Display the statistics of lead car and/or radar tracking points.<br>Lead: Lead stats only<br>Radar: Radar tracking point stats only<br>All: Lead and Radar stats<br>NOTE: Radar option only works on certain vehicle models."),
         "default": 0,
         "options": [
-          "Off",
-          "Lead",
-          "Radar",
-          "All"
+          lambda: tr("Off"),
+          lambda: tr("Lead"),
+          lambda: tr("Radar"),
+          lambda: tr("All"),
         ],
-        "condition": "not MICI",
       },
 
     ],
