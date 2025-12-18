@@ -45,9 +45,8 @@ SETTINGS = [
       {
         "key": "dp_ui_rainbow",
         "type": "toggle_item",
-        "title": "Rainbow Driving Path like Tesla",
-        "description": "Why not?",
-        "condition": "not MICI",
+        "title": lambda: tr("Rainbow Driving Path like Tesla"),
+        "description": lambda: tr("Why not?"),
       },
 
     ],
