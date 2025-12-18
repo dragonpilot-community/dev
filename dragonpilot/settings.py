@@ -18,7 +18,7 @@ SETTINGS = [
       {
         "key": "dp_vag_a0_sng",
         "type": "toggle_item",
-        "title": "MQB A0 SnG Mod",
+        "title": lambda: tr("MQB A0 SnG Mod"),
         "description": ""
       },
 
