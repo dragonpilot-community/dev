@@ -11,7 +11,7 @@ SETTINGS = [
       {
         "key": "dp_toyota_stock_lon",
         "type": "toggle_item",
-        "title": "Use Stock Longitudinal Control",
+        "title": lambda: tr("Use Stock Longitudinal Control"),
         "description": ""
       },
 
