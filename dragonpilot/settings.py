@@ -18,8 +18,8 @@ SETTINGS = [
       {
         "key": "dp_vag_pq_steering_patch",
         "type": "toggle_item",
-        "title": "PQ Steering Patch",
-        "description": ""
+        "title": lambda: tr("PQ Steering Patch"),
+        "description": "",
       },
 
     ],
