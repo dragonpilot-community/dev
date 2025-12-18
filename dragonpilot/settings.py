@@ -45,17 +45,16 @@ SETTINGS = [
       {
         "key": "dp_ui_display_mode",
         "type": "text_spin_button_item",
-        "title": "Display Mode",
-        "description": "Std.: Stock behavior.<br>MAIN+: ACC MAIN on = Display ON.<br>OP+: OP enabled = Display ON.<br>MAIN-: ACC MAIN on = Display OFF<br>OP-: OP enabled = Display OFF.",
+        "title": lambda: tr("Display Mode"),
+        "description": lambda: tr("Std.: Stock behavior.<br>MAIN+: ACC MAIN on = Display ON.<br>OP+: OP enabled = Display ON.<br>MAIN-: ACC MAIN on = Display OFF<br>OP-: OP enabled = Display OFF."),
         "default": 0,
         "options": [
-          "Std.",
-          "MAIN+",
-          "OP+",
-          "MAIN-",
-          "OP-"
+          lambda: tr("Std."),
+          lambda: tr("MAIN+"),
+          lambda: tr("OP+"),
+          lambda: tr("MAIN-"),
+          lambda: tr("OP-"),
         ],
-        "condition": "not MICI",
       },
 
     ],
