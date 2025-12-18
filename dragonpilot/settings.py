@@ -51,8 +51,8 @@ SETTINGS = [
       {
         "key": "dp_lon_ext_radar",
         "type": "toggle_item",
-        "title": "Use External Radar",
-        "description": "See https://github.com/eFiniLan/openpilot-ext-radar-addon for more information."
+        "title": lambda: tr("Use External Radar"),
+        "description": lambda: tr("See https://github.com/eFiniLan/openpilot-ext-radar-addon for more information."),
       },
 
     ],
