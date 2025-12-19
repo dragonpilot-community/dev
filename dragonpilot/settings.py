@@ -1,4 +1,7 @@
-from dragonpilot.system.ui.lib.multilang import tr
+try:
+  from dragonpilot.system.ui.lib.multilang import tr
+except:
+  from openpilot.system.ui.lib.multilang import tr
 
 SETTINGS = [
   {
@@ -37,6 +40,7 @@ SETTINGS = [
   },
   {
     "title": "UI",
+    "condition": "not MICI",
     "settings": [
 
     ],

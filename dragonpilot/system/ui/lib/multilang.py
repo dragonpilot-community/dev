@@ -13,6 +13,16 @@ class DpMultilang:
     self._dragon_translation: gettext.NullTranslations | gettext.GNUTranslations = gettext.NullTranslations()
     self._loaded_language: str = ""
 
+  @property
+  def languages(self):
+    """Delegate to base multilang."""
+    return base_multilang.languages
+
+  @property
+  def language(self):
+    """Delegate to base multilang."""
+    return base_multilang.language
+
   def _ensure_loaded(self):
     """Reload dragon translations if base language changed."""
     current_lang = base_multilang.language
