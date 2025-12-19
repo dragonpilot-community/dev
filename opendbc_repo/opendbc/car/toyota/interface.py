@@ -121,7 +121,6 @@ class CarInterface(CarInterfaceBase):
       print("dragonpilot: SDSU detected!")
       print("----------------------------------------------")
 
-      ret.enableDsu = False
       sdsu_active = True
       stop_and_go = True
 
