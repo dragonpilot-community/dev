@@ -190,6 +190,7 @@ class VolkswagenFlags(IntFlag):
   PQ = 2
   MLB = 8
 
+  PQSteeringPatch = 2 ** 10
 
 @dataclass
 class VolkswagenMLBPlatformConfig(PlatformConfig):
@@ -200,7 +201,6 @@ class VolkswagenMLBPlatformConfig(PlatformConfig):
   def init(self):
     self.flags |= VolkswagenFlags.MLB
 
-  PQSteeringPatch = 2 ** 10
 
 @dataclass
 class VolkswagenMQBPlatformConfig(PlatformConfig):
