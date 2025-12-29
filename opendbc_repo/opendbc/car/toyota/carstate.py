@@ -53,6 +53,9 @@ class CarState(CarStateBase):
     self.gvc = 0.0
     self.secoc_synchronization = None
 
+    from opendbc.car.toyota.sdsu import SDSU
+    self.sdsu = SDSU(CP.flags)
+
   def update(self, can_parsers) -> structs.CarState:
     cp = can_parsers[Bus.pt]
     cp_cam = can_parsers[Bus.cam]
@@ -192,7 +195,15 @@ class CarState(CarStateBase):
         buttonEvents.extend(create_button_events(1, 0, {1: ButtonType.lkas}) +
                             create_button_events(0, 1, {1: ButtonType.lkas}))
 
-      if self.CP.carFingerprint not in (RADAR_ACC_CAR | SECOC_CAR):
+      if self.sdsu.enabled:
+        # The follow distance button signal as forwarded by the sdsu
+        self.sdsu.update_states(can_parsers[Bus.sdsu])
+        prev_distance_button = self.distance_button
+        self.distance_button = self.sdsu.dist_btn
+
+        buttonEvents += create_button_events(self.distance_button, prev_distance_button, {1: ButtonType.gapAdjustCruise})
+
+      elif self.CP.carFingerprint not in (RADAR_ACC_CAR | SECOC_CAR):
         # distance button is wired to the ACC module (camera or radar)
         prev_distance_button = self.distance_button
         self.distance_button = cp_acc.vl["ACC_CONTROL"]["DISTANCE"]
@@ -212,7 +223,12 @@ class CarState(CarStateBase):
       ("BLINKERS_STATE", float('nan')),
     ]
 
-    return {
+    parsers = {
       Bus.pt: CANParser(DBC[CP.carFingerprint][Bus.pt], pt_messages, 0),
       Bus.cam: CANParser(DBC[CP.carFingerprint][Bus.pt], [], 2),
     }
+
+    if CP.flags & ToyotaFlags.SDSU:
+      parsers[Bus.sdsu] = CANParser("toyota_sdsu", [("SDSU", 100)], 0)
+
+    return parsers
