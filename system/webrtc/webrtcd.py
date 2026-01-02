@@ -26,6 +26,9 @@ class CerealOutgoingMessageProxy:
   def __init__(self, sm: messaging.SubMaster):
     self.sm = sm
     self.channels: list[RTCDataChannel] = []
+    self.serializer = {
+      'carParams': self._bytes_to_hex,
+    }
 
   def add_channel(self, channel: 'RTCDataChannel'):
     self.channels.append(channel)
@@ -42,6 +45,12 @@ class CerealOutgoingMessageProxy:
 
     return msg_dict
 
+  def _bytes_to_hex(self, obj):
+      """Convert bytes/bytearray to hex for JSON serialization."""
+      if isinstance(obj, (bytes, bytearray)):
+          return obj.hex()
+      raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
   async def update(self):
     # this is blocking in async context...
     self.sm.update(0)
@@ -51,7 +60,8 @@ class CerealOutgoingMessageProxy:
       msg_dict = self.to_json(self.sm[service])
       mono_time, valid = self.sm.logMonoTime[service], self.sm.valid[service]
       outgoing_msg = {"type": service, "logMonoTime": mono_time, "valid": valid, "data": msg_dict}
-      encoded_msg = json.dumps(outgoing_msg).encode()
+      serializer = self.serializer.get(service)
+      encoded_msg = json.dumps(outgoing_msg, default=serializer).encode()
       for channel in self.channels:
         if isinstance(channel, web.WebSocketResponse):
           await channel.send_bytes(encoded_msg)
@@ -300,9 +310,6 @@ def webrtcd_thread(host: str, port: int, debug: bool):
   app.router.add_route('OPTIONS', '/{tail:.*}', handle_cors_preflight)
 
   web.run_app(app, host=host, port=port)
-
-
-
 
 
 def main():
