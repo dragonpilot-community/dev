@@ -51,7 +51,7 @@ class CerealOutgoingMessageProxy:
           return obj.hex()
       raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
-  async def update(self):
+  def update(self):
     # this is blocking in async context...
     self.sm.update(0)
     for service, updated in self.sm.updated.items():
@@ -63,10 +63,7 @@ class CerealOutgoingMessageProxy:
       serializer = self.serializer.get(service)
       encoded_msg = json.dumps(outgoing_msg, default=serializer).encode()
       for channel in self.channels:
-        if isinstance(channel, web.WebSocketResponse):
-          await channel.send_bytes(encoded_msg)
-        else:
-          channel.send(encoded_msg)
+        channel.send(encoded_msg)
 
 
 class CerealIncomingMessageProxy:
@@ -107,7 +104,7 @@ class CerealProxyRunner:
 
     while True:
       try:
-        await self.proxy.update()
+        self.proxy.update()
       except InvalidStateError:
         self.logger.warning("Cereal outgoing proxy invalid state (connection closed)")
         break
@@ -242,7 +239,7 @@ async def get_stream(request: 'web.Request'):
 
   stream_dict[session.identifier] = session
 
-  return web.json_response({"sdp": answer.sdp, "type": answer.type}, headers={'Access-Control-Allow-Origin': '*'})
+  return web.json_response({"sdp": answer.sdp, "type": answer.type})
 
 
 async def get_schema(request: 'web.Request'):
@@ -273,33 +270,13 @@ async def on_shutdown(app: 'web.Application'):
   del app['streams']
 
 
-
-@web.middleware
-async def cors_middleware(request, handler):
-    response = await handler(request)
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-    return response
-
-async def handle_cors_preflight(request):
-    if request.method == 'OPTIONS':
-        headers = {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-            'Access-Control-Max-Age': '86400',
-        }
-        return web.Response(status=200, headers=headers)
-    return await request.app['handler'](request)
-
 def webrtcd_thread(host: str, port: int, debug: bool):
   logging.basicConfig(level=logging.CRITICAL, handlers=[logging.StreamHandler()])
   logging_level = logging.DEBUG if debug else logging.INFO
   logging.getLogger("WebRTCStream").setLevel(logging_level)
   logging.getLogger("webrtcd").setLevel(logging_level)
 
-  app = web.Application(middlewares=[cors_middleware])
+  app = web.Application()
 
   app['streams'] = dict()
   app['debug'] = debug
@@ -307,7 +284,6 @@ def webrtcd_thread(host: str, port: int, debug: bool):
   app.router.add_post("/stream", get_stream)
   app.router.add_post("/notify", post_notify)
   app.router.add_get("/schema", get_schema)
-  app.router.add_route('OPTIONS', '/{tail:.*}', handle_cors_preflight)
 
   web.run_app(app, host=host, port=port)
 
