@@ -117,6 +117,7 @@ procs = [
   PythonProcess("webjoystick", "tools.bodyteleop.web", notcar),
   PythonProcess("joystick", "tools.joystick.joystick_control", and_(joystick, iscar)),
   PythonProcess("dashy", "dragonpilot.dashy.backend.server", always_run),
+  PythonProcess("gpsd", "dragonpilot.selfdrive.gpsd.gpsd", and_(dashy, only_onroad)),
 ]
 
 managed_processes = {p.name: p for p in procs}
