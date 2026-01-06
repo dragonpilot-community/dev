@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """
 Copyright (c) 2025, Rick Lan
 
@@ -28,10 +30,13 @@ from urllib.parse import quote
 # import socket
 # import sys
 
-from aiohttp import web
+from aiohttp import web, ClientSession
 
 from openpilot.common.params import Params
 from openpilot.system.hardware import PC
+from dragonpilot.settings import SETTINGS
+from openpilot.system.ui.lib.multilang import multilang as base_multilang
+from openpilot.system.hardware import HARDWARE
 
 
 # --- File Browser Settings ---
@@ -119,14 +124,15 @@ async def get_settings_config_api(request):
         # Import settings.py from dragonpilot
         import sys
         import os
-        dp_path = os.path.join(os.path.dirname(__file__), '..', '..', 'dragonpilot')
-        if dp_path not in sys.path:
-            sys.path.insert(0, dp_path)
 
-        from dragonpilot.settings import SETTINGS
-
-        # Get current values from Params
         params = Params()
+        current_lang = params.get("LanguageSetting")
+        if current_lang:
+            lang_str = current_lang.decode() if isinstance(current_lang, bytes) else str(current_lang)
+            lang_str = lang_str.removeprefix("main_")
+            if lang_str != base_multilang.language and lang_str in base_multilang.languages.values():
+                base_multilang._language = lang_str
+                base_multilang.setup()
 
         # Helper function to evaluate conditions
         def eval_condition(condition, context):
@@ -168,7 +174,6 @@ async def get_settings_config_api(request):
         # Check for MICI device type
         mici = False
         try:
-            from openpilot.system.hardware import HARDWARE
             mici = HARDWARE.get_device_type() == "mici"
         except Exception as e:
             logging.getLogger("web_ui").debug(f"Could not check MICI device type: {e}")
@@ -181,6 +186,10 @@ async def get_settings_config_api(request):
         }
 
         logging.getLogger("web_ui").info(f"Settings context: {context}")
+
+        # Helper to resolve callable values (lambdas) for JSON serialization
+        def resolve_value(value):
+            return value() if callable(value) else value
 
         # Process settings and add current values
         settings_with_values = []
@@ -198,6 +207,13 @@ async def get_settings_config_api(request):
                     continue
                 setting_copy = setting.copy()
                 key = setting['key']
+
+                # Resolve callable values for JSON serialization
+                for field in ['title', 'description', 'suffix', 'special_value_text']:
+                    if field in setting_copy:
+                        setting_copy[field] = resolve_value(setting_copy[field])
+                if 'options' in setting_copy:
+                    setting_copy['options'] = [resolve_value(opt) for opt in setting_copy['options']]
 
                 # Debug: Log the setting properties
                 if key == 'dp_lat_lca_speed':
@@ -341,6 +357,34 @@ async def save_model_selection_api(request):
         logging.getLogger("web_ui").error(f"Error saving model selection: {e}")
         return web.json_response({'error': str(e)}, status=500)
 
+async def get_param_api(request):
+    """API endpoint to get a single param value."""
+    try:
+        param_name = request.match_info.get('param_name')
+        if not param_name:
+            return web.json_response({'error': 'param_name is required'}, status=400)
+
+        params = Params()
+
+        # Try to get the value
+        try:
+            # First try as bool
+            value = params.get_bool(param_name)
+        except Exception:
+            # Fall back to raw get
+            raw_value = params.get(param_name)
+            if raw_value is None:
+                value = None
+            elif isinstance(raw_value, bytes):
+                value = raw_value.decode('utf-8')
+            else:
+                value = raw_value
+
+        return web.json_response({'key': param_name, 'value': value})
+    except Exception as e:
+        logging.getLogger("web_ui").error(f"Error getting param {param_name}: {e}")
+        return web.json_response({'error': str(e)}, status=500)
+
 async def init_api(request):
     """API endpoint to provide initial data to the client."""
     try:
@@ -363,14 +407,48 @@ async def init_api(request):
         except Exception:
             dp_dev_dashy = True
 
+        # UbloxAvailable - determines GPS source (gpsLocationExternal vs gpsLocation)
+        try:
+            ublox_available = params.get_bool("UbloxAvailable")
+        except Exception:
+            ublox_available = True
+
+        # dp_lat_alka - ALKA feature enabled
+        try:
+            dp_lat_alka = params.get_bool("dp_lat_alka")
+        except Exception:
+            dp_lat_alka = False
+
         return web.json_response({
             'is_metric': params.get_bool("IsMetric"),
             'dp_dev_dashy': dp_dev_dashy,
             'openpilot_longitudinal_control': openpilot_longitudinal_control,
+            'ublox_available': ublox_available,
+            'dp_lat_alka': dp_lat_alka,
         })
     except Exception as e:
         logging.getLogger("web_ui").error(f"Error fetching initial data: {e}")
         return web.json_response({'error': f"Error fetching initial data: {e}"}, status=500)
+
+async def webrtc_stream_proxy(request):
+    """Proxy WebRTC stream requests to webrtcd to avoid CORS issues."""
+    try:
+        # Get the host from the request (webrtcd runs on same host as dashy)
+        host = request.host.split(':')[0]  # Remove port if present
+        body = await request.read()
+        async with ClientSession() as session:
+            async with session.post(f'http://{host}:5001/stream',
+                                   data=body,
+                                   headers={'Content-Type': 'application/json'}) as resp:
+                response_body = await resp.read()
+                return web.Response(
+                    body=response_body,
+                    status=resp.status,
+                    content_type=resp.content_type
+                )
+    except Exception as e:
+        logging.getLogger("web_ui").error(f"WebRTC proxy error: {e}")
+        return web.json_response({'error': str(e)}, status=502)
 
 async def on_startup(app):
     logging.getLogger("web_ui").info("Web UI application starting up...")
@@ -378,13 +456,21 @@ async def on_startup(app):
 async def on_cleanup(app):
     logging.getLogger("web_ui").info("Web UI application shutting down...")
 
-# --- CORS Middleware ---
+# --- CORS and Cache Middleware ---
 @web.middleware
 async def cors_middleware(request, handler):
     response = await handler(request)
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+
+    # Disable caching for web assets (prevents stale cache in mobile webviews)
+    path = request.path.lower()
+    if path.endswith(('.html', '.js', '.css')) or path == '/':
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+
     return response
 
 async def handle_cors_preflight(request):
@@ -412,8 +498,10 @@ def setup_aiohttp_app(host: str, port: int, debug: bool):
     app.router.add_get("/api/manifest.m3u8", serve_manifest_api)
     app.router.add_get("/api/settings/config", get_settings_config_api)
     app.router.add_post("/api/settings/save", save_settings_values_api)
+    app.router.add_get("/api/settings/params/{param_name}", get_param_api)
     app.router.add_get("/api/models", get_model_list_api)
     app.router.add_post("/api/models/select", save_model_selection_api)
+    app.router.add_post("/api/stream", webrtc_stream_proxy)
 
     # Static files
     app.router.add_static('/media', path=DEFAULT_DIR, name='media', show_index=False, follow_symlinks=False)

@@ -16,7 +16,10 @@ struct CustomReserved0 @0x81c2f05a394cf4af {
 struct CustomReserved1 @0xaedffd8f31e7b55d {
 }
 
-struct LiveGPS @0xf35cc4560bbf6ec2 {
+struct CustomReserved2 @0xf35cc4560bbf6ec2 {
+}
+
+struct LiveGPS @0xda96579883444c35 {
   # Position
   latitude @0 :Float64;                # degrees
   longitude @1 :Float64;               # degrees
@@ -46,9 +49,6 @@ struct LiveGPS @0xf35cc4560bbf6ec2 {
   # Metadata
   unixTimestampMillis @9 :Int64;
   lastGpsTimestamp @10 :UInt64;        # logMonoTime of last GPS
-}
-
-struct CustomReserved3 @0xda96579883444c35 {
 }
 
 struct CustomReserved4 @0x80ae746ee2596b11 {
