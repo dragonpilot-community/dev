@@ -5,10 +5,12 @@
 
 const CACHE_NAME = 'dashy-map-tiles-v1';
 const TILE_HOSTS = ['tiles.openfreemap.org'];
-const MAX_CACHE_SIZE = 1000; // Max tiles to cache
+const MAX_CACHE_SIZE = 2000; // Max tiles to cache
+const TRIM_INTERVAL = 60000; // Only trim cache every 60 seconds
 
 // Debug mode - can be set via message from main thread
 let _debug = false;
+let _lastTrimTime = 0;
 
 function debugLog(...args) {
     if (_debug) console.log(...args);
@@ -80,6 +82,13 @@ async function fetchAndCache(request, cache) {
 }
 
 async function trimCache(cache) {
+    // Only trim every TRIM_INTERVAL to avoid constant overhead
+    const now = Date.now();
+    if (now - _lastTrimTime < TRIM_INTERVAL) {
+        return;
+    }
+    _lastTrimTime = now;
+
     const keys = await cache.keys();
     if (keys.length > MAX_CACHE_SIZE) {
         // Delete oldest entries

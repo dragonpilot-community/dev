@@ -30,17 +30,19 @@
             <!-- Panel Header with Tabs -->
             <div class="panel-header">
                 <div class="panel-handle"></div>
-                <div class="join">
-                    <button id="panel-tab-controls" class="join-item btn btn-primary w-28">Controls</button>
-                    <button id="panel-tab-settings" class="join-item btn btn-ghost w-28">Settings</button>
-                    <button id="panel-tab-files" class="join-item btn btn-ghost w-28">Files</button>
+                <div class="flex items-center justify-between w-full gap-2">
+                    <div class="join flex-1 max-w-sm">
+                        <button id="panel-tab-controls" class="join-item btn btn-primary btn-sm sm:btn-md flex-1">Controls</button>
+                        <button id="panel-tab-settings" class="join-item btn btn-ghost btn-sm sm:btn-md flex-1">Settings</button>
+                        <button id="panel-tab-files" class="join-item btn btn-ghost btn-sm sm:btn-md flex-1">Files</button>
+                    </div>
+                    <button id="panel-close" class="btn btn-circle btn-ghost btn-sm sm:btn-md shrink-0" aria-label="Close panel">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
                 </div>
-                <button id="panel-close" class="btn btn-circle btn-ghost btn-lg" aria-label="Close panel">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
             </div>
 
             <!-- Panel Content -->

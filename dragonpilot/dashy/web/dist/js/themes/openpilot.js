@@ -1,1 +1,24 @@
-var f=Object.defineProperty;var p=(s,t,r)=>t in s?f(s,t,{enumerable:!0,configurable:!0,writable:!0,value:r}):s[t]=r;var o=(s,t,r)=>p(s,typeof t!="symbol"?t+"":t,r);(function(){"use strict";class s extends HudRenderer{constructor(){super(),this._blinkerLeft=!1,this._blinkerRight=!1,this._bsmLeft=!1,this._bsmRight=!1,this._minimapInitialized=!1,this._minimapContainer=null}render(e,i,a){super.render(e,i,a);const n=i.carState;return n&&(this._blinkerLeft=n.leftBlinker||!1,this._blinkerRight=n.rightBlinker||!1,this._bsmLeft=n.leftBlindspot||!1,this._bsmRight=n.rightBlindspot||!1),window.EdgeIndicators&&(EdgeIndicators.update(),EdgeIndicators.draw(a,e.width,e.height,this._blinkerLeft,this._blinkerRight,this._bsmLeft,this._bsmRight)),this._renderMinimap(i),!1}_renderMinimap(e){if(!window.Minimap)return;if(!this._minimapInitialized){if(this._minimapContainer=document.getElementById("hud-page-content"),!this._minimapContainer)return;Minimap.init().then(()=>{Minimap.show(this._minimapContainer,{position:"bottom-right",size:250,zoom:16,rightOffset:20}),this._minimapInitialized=!0}).catch(()=>{});return}if(Minimap.show(this._minimapContainer,{rightOffset:20}),!Minimap.isVisible())return;const i=e.liveGPS,a=e.carState;let n=0,d=0,l=0,h=0;if(i&&i.latitude&&i.longitude&&(n=i.latitude,d=i.longitude,i.bearingDeg!==void 0&&(l=i.bearingDeg)),a){const m=a.vEgoCluster||a.vEgo||0;h=Math.max(0,m*3.6)}n!==0&&d!==0?Minimap.setPosition(n,d,l,h):window.debug&&console.log("[OpenpilotHudRenderer] No GPS data - liveGPS:",i)}destroy(){this._minimapInitialized&&window.Minimap&&Minimap.hide(),this._minimapInitialized=!1}}window.OpenpilotHudRenderer=s;class t{constructor(){this._enabled=!1,this._isMetric=!0}init(e,i){}setEnabled(e){this._enabled=e}isEnabled(){return this._enabled}destroy(){this._enabled=!1}setMetric(e){this._isMetric=e}update(e){}render(e,i,a){}}o(t,"requiresVideo",!0),window.OpenpilotTheme=t})();
+/*
+ * Copyright (c) 2025, Rick Lan
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, and/or sublicense,
+ * for non-commercial purposes only, subject to the following conditions:
+ *
+ * - The above copyright notice and this permission notice shall be included in
+ *   all copies or substantial portions of the Software.
+ * - Commercial use (e.g. use in a product, service, or activity intended to
+ *   generate revenue) is prohibited without explicit written permission from
+ *   the copyright holder.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+var n=Object.defineProperty;var u=(r,e,d)=>e in r?n(r,e,{enumerable:!0,configurable:!0,writable:!0,value:d}):r[e]=d;var s=(r,e,d)=>u(r,typeof e!="symbol"?e+"":e,d);(function(){"use strict";class r extends HudRenderer{render(t,i,a){return super.render(t,i,a),window.EdgeIndicators&&EdgeIndicators.draw(a,t,i),!1}}window.OpenpilotHudRenderer=r;class e extends BaseTheme{}s(e,"layout",Layouts.fullResponsive),s(e,"requiresVideo",!0),s(e,"modules",["OpHud","OpBorder","OpAlerts","NavMap","EdgeIndicators"]),s(e,"layers",[]),s(e,"minimapConfig",{useGrid:!1,options:{responsiveThird:!0,zoom:16,interactive:!0,scale:1.5}}),s(e,"hudRenderer","OpenpilotHudRenderer"),window.OpenpilotTheme=e})();
