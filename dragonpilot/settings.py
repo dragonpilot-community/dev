@@ -48,6 +48,12 @@ SETTINGS = [
   {
     "title": "Device",
     "settings": [
+      {
+        "key": "dp_dev_opview",
+        "type": "toggle_item",
+        "title": lambda: tr("Enable opview"),
+        "description": lambda: tr("Broadcasts telemetry to the opview App (available on Android). Requires the companion App to be running on an external display."),
+      },
 
     ],
   },
