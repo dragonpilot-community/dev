@@ -21,8 +21,9 @@ import numpy as np
 from openpilot.selfdrive.modeld.constants import ModelConstants
 
 # Cooldown times (how long to stay in experimental mode after trigger)
-AEM_COOLDOWN_STOP = 0.5      # seconds - for stop sign/light detection
 AEM_COOLDOWN_TTC = 3.0       # seconds - for lead TTC events
+AEM_DECEL_FOR_STOP = 2.5     # m/s² - assumed deceleration for stop cooldown calc
+AEM_STOP_BUFFER = 2.0        # seconds - extra buffer for model latency
 
 # Stop sign/light detection thresholds
 SLOW_DOWN_BP = [0., 2.78, 5.56, 8.34, 11.12, 13.89, 15.28]
@@ -59,7 +60,7 @@ class AEM:
     # Uses max() so it can't shorten an existing longer cooldown
     if len(model_msg.orientation.x) == len(model_msg.position.x) == ModelConstants.IDX_N and \
       model_msg.position.x[ModelConstants.IDX_N - 1] < np.interp(v_ego, SLOW_DOWN_BP, SLOW_DOWN_DIST):
-      self._perform_experimental_mode(AEM_COOLDOWN_STOP)
+      self._perform_experimental_mode(v_ego / AEM_DECEL_FOR_STOP + AEM_STOP_BUFFER)
 
     # TTC-based triggering - lead car braking hard
     if v_ego > MIN_SPEED_FOR_TTC and radar_msg.leadOne.status:
