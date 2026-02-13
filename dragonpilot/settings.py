@@ -35,6 +35,12 @@ SETTINGS = [
     "title": "Longitudinal",
     "condition": "openpilotLongitudinalControl",
     "settings": [
+      {
+        "key": "dp_lon_dasr",
+        "type": "toggle_item",
+        "title": lambda: tr("Dynamic Accel Slew Rate (DASR)"),
+        "description": lambda: tr("Speed-dependent acceleration smoothing. Allows faster accel changes at low speeds for responsive city driving, smoother changes at highway speeds for comfort."),
+      },
 
     ],
   },

@@ -24,6 +24,9 @@ def main():
 
   dp_flags = 0
 
+  if params.get_bool("dp_lon_dasr"):
+    dp_flags |= DPFlags.DASR
+
   while True:
     sm.update()
     if sm.updated['modelV2']:
