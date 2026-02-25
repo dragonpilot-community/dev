@@ -195,20 +195,22 @@ class CarState(CarStateBase):
         buttonEvents.extend(create_button_events(1, 0, {1: ButtonType.lkas}) +
                             create_button_events(0, 1, {1: ButtonType.lkas}))
 
-      if self.sdsu.enabled:
-        # The follow distance button signal as forwarded by the sdsu
-        self.sdsu.update_states(can_parsers[Bus.sdsu])
-        prev_distance_button = self.distance_button
-        self.distance_button = self.sdsu.dist_btn
-
-        buttonEvents += create_button_events(self.distance_button, prev_distance_button, {1: ButtonType.gapAdjustCruise})
-
-      elif self.CP.carFingerprint not in (RADAR_ACC_CAR | SECOC_CAR):
+      if self.CP.carFingerprint not in (RADAR_ACC_CAR | SECOC_CAR):
         # distance button is wired to the ACC module (camera or radar)
         prev_distance_button = self.distance_button
         self.distance_button = cp_acc.vl["ACC_CONTROL"]["DISTANCE"]
 
         buttonEvents += create_button_events(self.distance_button, prev_distance_button, {1: ButtonType.gapAdjustCruise})
+
+    elif self.sdsu.enabled:
+      # The follow distance button signal as forwarded by the sdsu
+      self.sdsu.update_states(can_parsers[Bus.sdsu])
+      prev_distance_button = self.distance_button
+      self.distance_button = self.sdsu.dist_btn
+
+      buttonEvents += create_button_events(self.distance_button, prev_distance_button, {1: ButtonType.gapAdjustCruise})
+
+
 
     ret.buttonEvents = buttonEvents
 
