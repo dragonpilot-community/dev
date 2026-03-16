@@ -119,9 +119,8 @@ class StreamSession:
   shared_pub_master = DynamicPubMaster([])
 
   def __init__(self, sdp: str, cameras: list[str], incoming_services: list[str], outgoing_services: list[str], debug_mode: bool = False):
-    from aiortc.mediastreams import VideoStreamTrack, AudioStreamTrack
+    from aiortc.mediastreams import VideoStreamTrack
     from openpilot.system.webrtc.device.video import LiveStreamVideoStreamTrack
-    from openpilot.system.webrtc.device.audio import AudioInputStreamTrack, AudioOutputSpeaker
     from teleoprtc import WebRTCAnswerBuilder
     from teleoprtc.info import parse_info_from_offer
 
@@ -131,14 +130,6 @@ class StreamSession:
     assert len(cameras) == config.n_expected_camera_tracks, "Incoming stream has misconfigured number of video tracks"
     for cam in cameras:
       builder.add_video_stream(cam, LiveStreamVideoStreamTrack(cam) if not debug_mode else VideoStreamTrack())
-    if config.expected_audio_track:
-      try:
-        builder.add_audio_stream(AudioInputStreamTrack() if not debug_mode else AudioStreamTrack())
-      except OSError:
-        pass
-    if config.incoming_audio_track:
-      self.audio_output_cls = AudioOutputSpeaker if not debug_mode else MediaBlackhole
-      builder.offer_to_receive_audio_stream()
 
     self.stream = builder.stream()
     self.identifier = str(uuid.uuid4())
