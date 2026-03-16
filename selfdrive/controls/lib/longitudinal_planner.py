@@ -69,7 +69,6 @@ class LongitudinalPlanner:
     self.v_desired_trajectory = np.zeros(CONTROL_N)
     self.a_desired_trajectory = np.zeros(CONTROL_N)
     self.j_desired_trajectory = np.zeros(CONTROL_N)
-    self.solverExecutionTime = 0.0
     self.dtsc = DTSC(aggressiveness=0.8)
 
   @staticmethod
