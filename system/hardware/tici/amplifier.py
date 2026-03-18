@@ -7,8 +7,6 @@ from openpilot.common.i2c import SMBus
 # https://datasheets.maximintegrated.com/en/ds/MAX98089.pdf
 
 AmpConfig = namedtuple('AmpConfig', ['name', 'value', 'register', 'offset', 'mask'])
-
-# rick - for c3 EQ
 EQParams = namedtuple('EQParams', ['K', 'k1', 'k2', 'c1', 'c2'])
 
 def configs_from_eq_params(base, eq_params):
@@ -25,6 +23,7 @@ def configs_from_eq_params(base, eq_params):
     AmpConfig("c2 (low)", (eq_params.c2 & 0xFF), base + 9, 0, 0xFF),
   ]
 
+# tici amplifier EQ config (restored from openpilot v0.10.0)
 TICI_CONFIG = [
   AmpConfig("Right speaker output from right DAC", 0b1, 0x2C, 0, 0b11111111),
   AmpConfig("Right Speaker Mixer Gain", 0b00, 0x2D, 2, 0b00001100),
@@ -149,5 +148,9 @@ class Amplifier:
 
 
 if __name__ == "__main__":
+  with open("/sys/firmware/devicetree/base/model") as f:
+    model = f.read().strip('\x00')
+  model = model.split('comma ')[-1]
+
   amp = Amplifier()
-  amp.initialize_configuration()
+  amp.initialize_configuration(model)
