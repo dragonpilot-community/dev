@@ -183,6 +183,9 @@ cache_dir = '/data/scons_cache' if arch == "larch64" else '/tmp/scons_cache'
 CacheDir(cache_dir)
 Clean(["."], cache_dir)
 
+# dragonpilot settings generation
+env.Command('dragonpilot/generate_settings.py', None, 'bash ./generate_settings.sh')
+
 # ********** start building stuff **********
 
 # Build common module
