@@ -64,19 +64,34 @@ function agnos_init {
 
 set_tici_hw() {
   if grep -q "tici" /sys/firmware/devicetree/base/model 2>/dev/null; then
-    echo "Querying panda MCU type..."
-    MCU_OUTPUT=$(python -c "from panda_tici import Panda; p = Panda(cli=False); print(p.get_mcu_type()); p.close()" 2>/dev/null)
-
-    if [[ "$MCU_OUTPUT" == *"McuType.F4"* ]]; then
-      echo "TICI (DOS) detected"
-      mount_nvme
-    elif [[ "$MCU_OUTPUT" == *"McuType.H7"* ]]; then
-      echo "TICI (TRES) detected"
-      export TICI_TRES=1
-    else
-      echo "TICI (UNKNOWN) detected"
-    fi
     export TICI_HW=1
+    echo "Querying panda MCU type..."
+
+    # Loop for a maximum of 10 attempts
+    for attempt in {1..10}; do
+      # Initial wait or wait between retries
+      sleep 3
+
+      MCU_OUTPUT=$(python -c "from panda_tici import Panda; p = Panda(cli=False); print(p.get_mcu_type()); p.close()" 2>/dev/null)
+
+      if [[ "$MCU_OUTPUT" == *"McuType.F4"* ]]; then
+        echo "TICI (DOS) detected"
+        mount_nvme
+        export TICI_DOS=1
+        return 0  # Success, exit function
+      elif [[ "$MCU_OUTPUT" == *"McuType.H7"* ]]; then
+        echo "TICI (TRES) detected"
+        export TICI_TRES=1
+        return 0  # Success, exit function
+      fi
+
+      # If we reach here, it was UNKNOWN
+      echo "TICI (UNKNOWN) detected. Attempt $attempt of 10..."
+    done
+
+    # If the loop finishes without returning, we failed 10 times
+    echo "TICI (UNKNOWN) detected after 10 attempts, stop processing."
+    exit 1
   fi
 }
 

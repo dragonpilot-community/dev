@@ -120,7 +120,7 @@ env = Environment(
   LIBPATH=[
     "#common",
     "#msgq_repo",
-    "#selfdrive/pandad",
+    "#selfdrive/pandad_tici" if "TICI_DOS" in os.environ else "#selfdrive/pandad",
     "#rednose/helpers",
     [x.LIB_DIR for x in pkgs],
   ],
