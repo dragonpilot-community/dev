@@ -25,10 +25,7 @@ from openpilot.system.hardware.hw import Paths
 import importlib
 
 # Pre-register panda_main as panda before loading it
-if "TICI_DOS" in os.environ:
-    target_mod = "panda_tici"
-else:
-    target_mod = "panda"
+target_mod = "panda_tici" if "TICI_DOS" in os.environ else "panda"
 
 print(f"panda dir: {target_mod}")
 
