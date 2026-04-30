@@ -195,4 +195,4 @@ class DeveloperLayout(Widget):
   def _on_show_last_errors(self):
     if not self._last_error_log_dialog:
       self._last_error_log_dialog = HtmlModal(text=(self._params.get("dp_dev_last_log") or ""))
-    gui_app.set_modal_overlay(self._last_error_log_dialog)
+    gui_app.push_widget(self._last_error_log_dialog)
