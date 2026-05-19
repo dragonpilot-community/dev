@@ -1,259 +1,169 @@
 #!/usr/bin/env python3
 """
-Dragonpilot Settings Generator
+Copyright (c) 2026, Rick Lan
 
-Scans dragonpilot/settings/*.yaml, merges all entries, and generates:
-- dragonpilot/settings.py (fresh)
-- common/params_keys.h (with openpilot base preserved via markers)
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, and/or sublicense,
+for non-commercial purposes only, subject to the following conditions:
+
+- The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+- Commercial use (e.g. use in a product, service, or activity intended to
+  generate revenue) is prohibited without explicit written permission from
+  the copyright holder.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Dragonpilot params_keys.h generator.
+
+Scans dragonpilot/settings/*.py, AST-walks each module's `ITEMS` literal to
+extract param-storage fields (key, flags, param_type, default), validates them
+against the canonical enum values, and inserts any missing dp_* entries into
+common/params_keys.h. Hermetic: no module is imported.
+
+The runtime UI panel reads the same ITEMS via dragonpilot/settings/__init__.py.
 """
-
-import yaml
+import ast
+import re
 from pathlib import Path
-from typing import Dict, List
 
 SCRIPT_DIR = Path(__file__).parent
 SETTINGS_DIR = SCRIPT_DIR / "dragonpilot" / "settings"
-SETTINGS_PY_OUT = SCRIPT_DIR / "dragonpilot" / "settings.py"
-PARAMS_KEYS_H_OUT = SCRIPT_DIR / "common" / "params_keys.h"
+PARAMS_KEYS_H = SCRIPT_DIR / "common" / "params_keys.h"
 
-SECTION_ORDER = [
-    "Toyota / Lexus",
-    "HKG",
-    "VAG",
-    "Mazda",
-    "Lateral",
-    "Longitudinal",
-    "UI",
-    "Device",
-]
+# Keep in sync with common/params.h (enum ParamKeyType / enum ParamKeyFlag).
+VALID_PARAM_TYPES = {"STRING", "BOOL", "INT", "FLOAT", "TIME", "JSON", "BYTES"}
+VALID_FLAGS = {
+  "PERSISTENT",
+  "CLEAR_ON_MANAGER_START",
+  "CLEAR_ON_ONROAD_TRANSITION",
+  "CLEAR_ON_OFFROAD_TRANSITION",
+  "DONT_LOG",
+  "DEVELOPMENT_ONLY",
+  "CLEAR_ON_IGNITION_ON",
+}
 
-
-def find_yaml_files() -> List[Path]:
-    """Find all YAML files in dragonpilot/settings/."""
-    return sorted(SETTINGS_DIR.glob("*.yaml"))
+_PARAM_FIELDS = {"key", "flags", "param_type", "default"}
 
 
-def merge_yaml_files() -> Dict:
-    """Load and merge all YAML files by section."""
-    yaml_files = find_yaml_files()
-    print(f"Found {len(yaml_files)} YAML files")
-
-    sections_map = {}
-    params_map = {}
-
-    for f in yaml_files:
-        print(f"  Merging {f.name}...")
-        with open(f, "r") as fh:
-            data = yaml.safe_load(fh)
-
-            settings_list = data.get("settings", [])
-            if isinstance(settings_list, list) and len(settings_list) > 0:
-                first_item = settings_list[0]
-                if "items" in first_item:
-                    for section in settings_list:
-                        title = section.get("title", "")
-                        if title not in sections_map:
-                            sections_map[title] = {
-                                "title": title,
-                                "condition": section.get("condition"),
-                                "items": []
-                            }
-                        for item in section.get("items", []):
-                            if "title" in item:
-                                sections_map[title]["items"].append(item)
-                            if "key" in item:
-                                params_map[item["key"]] = {
-                                    "key": item["key"],
-                                    "flags": item.get("flags", "PERSISTENT"),
-                                    "type": item.get("param_type", "BOOL"),
-                                    "default": item.get("default", "0")
-                                }
-                elif "key" in first_item:
-                    for item in settings_list:
-                        category = item.get("category", "")
-                        if category not in sections_map:
-                            sections_map[category] = {
-                                "title": category,
-                                "condition": item.get("condition"),
-                                "items": []
-                            }
-                        if "title" in item:
-                            sections_map[category]["items"].append(item)
-                        if "key" in item:
-                            params_map[item["key"]] = {
-                                "key": item["key"],
-                                "flags": item.get("flags", "PERSISTENT"),
-                                "type": item.get("param_type", "BOOL"),
-                                "default": item.get("default", "0")
-                            }
-
-            for param in data.get("params_keys", []):
-                params_map[param["key"]] = param
-
-    # Sort sections by SECTION_ORDER
-    sorted_sections = []
-    for title in SECTION_ORDER:
-        if title in sections_map:
-            sorted_sections.append(sections_map[title])
-
-    # Add any sections not in SECTION_ORDER at the end
-    for title, section in sections_map.items():
-        if title not in SECTION_ORDER:
-            sorted_sections.append(section)
-
-    return {
-        "settings": sorted_sections,
-        "params_keys": list(params_map.values())
-    }
+def _extract_items_node(tree: ast.AST) -> ast.List | None:
+  for node in tree.body:
+    if isinstance(node, ast.Assign):
+      for target in node.targets:
+        if isinstance(target, ast.Name) and target.id == "ITEMS":
+          if not isinstance(node.value, ast.List):
+            raise ValueError("ITEMS must be a list literal")
+          return node.value
+  return None
 
 
-def generate_settings_py(data: Dict) -> str:
-    """Generate settings.py (fresh)."""
-    lines = [
-        "try:",
-        "  from dragonpilot.system.ui.lib.multilang import tr",
-        "except:",
-        "  from openpilot.system.ui.lib.multilang import tr",
-        "",
-        "SETTINGS = [",
-    ]
-
-    def esc(s):
-        return s.replace("\\", "\\\\").replace('"', '\\"')
-
-    def emit_item(item, indent=6):
-        if "title" not in item:
-            return
-        prefix = " " * indent
-        lines.append(prefix + "{")
-        lines.append(f'{prefix}  "key": "{item["key"]}",')
-        lines.append(f'{prefix}  "type": "{item.get("type", "toggle_item")}",')
-        lines.append(f'{prefix}  "title": lambda: tr("{esc(item.get("title", item["key"]))}"),')
-
-        if "description" in item:
-            lines.append(f'{prefix}  "description": lambda: tr("{esc(item["description"])}"),')
-
-        if "options" in item:
-            opts = ", ".join(f'tr("{esc(o)}")' for o in item["options"])
-            lines.append(f'{prefix}  "options": [{opts}],')
-
-        if "default" in item:
-            lines.append(f'{prefix}  "default": {item["default"]},')
-
-        if "min_val" in item:
-            lines.append(f'{prefix}  "min_val": {item["min_val"]},')
-        if "max_val" in item:
-            lines.append(f'{prefix}  "max_val": {item["max_val"]},')
-        if "step" in item:
-            lines.append(f'{prefix}  "step": {item["step"]},')
-
-        if "suffix" in item:
-            lines.append(f'{prefix}  "suffix": lambda: tr("{esc(item["suffix"])}"),')
-
-        if "special_value_text" in item:
-            lines.append(f'{prefix}  "special_value_text": lambda: tr("{esc(item["special_value_text"])}"),')
-
-        if "brands" in item:
-            brands = ", ".join(f'"{b}"' for b in item["brands"])
-            lines.append(f'{prefix}  "brands": [{brands}],')
-
-        if "condition" in item:
-            lines.append(f'{prefix}  "condition": "{item["condition"]}",')
-
-        if "on_change" in item:
-            lines.append(f"{prefix}  \"on_change\": [")
-            for oc in item["on_change"]:
-                lines.append(f'{prefix}    {{"target": "{oc["target"]}", "action": "{oc["action"]}", "condition": "{oc["condition"]}"}},')
-            lines.append(f"{prefix}  ],")
-
-        if "initially_enabled_by" in item:
-            ieb = item["initially_enabled_by"]
-            lines.append(f'{prefix}  "initially_enabled_by": {{"param": "{ieb["param"]}", "condition": "{ieb["condition"]}", "default": {ieb["default"]}}}')
-
-        lines.append(f"{prefix}}},")
-
-    def emit_section(section, indent=2):
-        prefix = " " * indent
-        lines.append(prefix + "{")
-        lines.append(f'{prefix}  "title": "{esc(section["title"])}",')
-        if section.get("condition"):
-            lines.append(f'{prefix}  "condition": "{section["condition"]}",')
-        lines.append(f'{prefix}  "settings": [')
-        for item in section.get("items", []):
-            emit_item(item, indent + 4)
-        lines.append(f"{prefix}  ],")
-        lines.append(f"{prefix}}},")
-
-    for section in data.get("settings", []):
-        emit_section(section)
-
-    lines.append("]")
-    return "\n".join(lines)
+def _literal_or_none(node: ast.AST):
+  """Return the literal value if node is a string/int/float/bool constant, else None."""
+  if isinstance(node, ast.Constant) and isinstance(node.value, (str, int, float, bool)):
+    return node.value
+  return None
 
 
-def generate_params_keys_h(data: Dict) -> str:
-    """Generate dragonpilot params section only."""
-    lines = []
+def _extract_param(dict_node: ast.Dict, source: str) -> dict | None:
+  """Pull literal param fields out of an ITEMS dict. Returns None if no param storage declared."""
+  fields: dict = {}
+  for k_node, v_node in zip(dict_node.keys, dict_node.values):
+    if not (isinstance(k_node, ast.Constant) and isinstance(k_node.value, str)):
+      continue
+    name = k_node.value
+    if name not in _PARAM_FIELDS:
+      continue
+    lit = _literal_or_none(v_node)
+    if lit is None:
+      raise ValueError(f"{source}: field {name!r} must be a literal (got {ast.dump(v_node)})")
+    fields[name] = lit
 
-    for param in data.get("params_keys", []):
-        key = param["key"]
-        flags = param.get("flags", "PERSISTENT")
-        ptype = param.get("type", "BOOL")
-        default = param.get("default", "0")
-        default_str = str(default)
-        lines.append(f'    {{"{key}", {{{flags}, {ptype}, "{default_str}"}}}},')
+  if "key" not in fields:
+    return None
 
-    return lines
+  has_flags = "flags" in fields
+  has_type = "param_type" in fields
+  if has_flags ^ has_type:
+    raise ValueError(f"{source}: item {fields['key']!r} must declare both flags and param_type (got one)")
+  if not has_flags:
+    return None  # UI-only entry (rare; usually every UI item persists)
+
+  param_type = fields["param_type"]
+  if param_type not in VALID_PARAM_TYPES:
+    raise ValueError(f"{source}: {fields['key']}: unknown param_type {param_type!r}. "
+                     f"Valid: {sorted(VALID_PARAM_TYPES)}")
+
+  for flag in str(fields["flags"]).split("|"):
+    flag = flag.strip()
+    if flag not in VALID_FLAGS:
+      raise ValueError(f"{source}: {fields['key']}: unknown flag {flag!r}. "
+                       f"Valid: {sorted(VALID_FLAGS)}")
+
+  return fields
 
 
-def update_params_keys_h(generated_dp_params: List[str]):
-    """Append dragonpilot params to params_keys.h, skipping existing ones."""
-    with open(PARAMS_KEYS_H_OUT, "r") as f:
-        content = f.read()
+def extract_params(py_file: Path) -> list[dict]:
+  tree = ast.parse(py_file.read_text())
+  items_node = _extract_items_node(tree)
+  if items_node is None:
+    return []
 
-    existing_keys = set()
-    for line in content.split('\n'):
-        import re
-        m = re.search(r'\{\"dp_[^"]+\"', line)
-        if m:
-            existing_keys.add(m.group(0)[2:-1])
+  out = []
+  for entry in items_node.elts:
+    if not isinstance(entry, ast.Dict):
+      continue
+    param = _extract_param(entry, py_file.name)
+    if param is not None:
+      out.append(param)
+  return out
 
-    new_lines = []
-    for line in generated_dp_params:
-        if line.strip():
-            key_match = re.search(r'\{\"dp_[^\"]+\"', line)
-            if key_match:
-                key = key_match.group(0)[2:-1]
-                if key not in existing_keys:
-                    new_lines.append(line)
 
-    lines = content.split('\n')
-    for i, line in enumerate(lines):
-        if line.strip() == '};':
-            if new_lines:
-                lines.insert(i, '\n'.join(new_lines))
-            break
+def collect_all_params() -> dict[str, dict]:
+  merged: dict[str, dict] = {}
+  for py_file in sorted(SETTINGS_DIR.glob("*.py")):
+    if py_file.name == "__init__.py":
+      continue
+    for param in extract_params(py_file):
+      merged[param["key"]] = param
+  return merged
 
-    with open(PARAMS_KEYS_H_OUT, "w") as f:
-        f.write('\n'.join(lines))
+
+def render_param_line(param: dict) -> str:
+  key = param["key"]
+  flags = param["flags"]
+  ptype = param["param_type"]
+  default = param.get("default", "")
+  if default == "":
+    return f'    {{"{key}", {{{flags}, {ptype}}}}},'
+  return f'    {{"{key}", {{{flags}, {ptype}, "{default}"}}}},'
+
+
+def update_params_keys_h(params: dict[str, dict]) -> None:
+  content = PARAMS_KEYS_H.read_text()
+  existing = set(re.findall(r'\{"(dp_[^"]+)"', content))
+
+  new_lines = [render_param_line(p) for k, p in params.items() if k not in existing]
+  if not new_lines:
+    print("params_keys.h: nothing to add")
+    return
+
+  lines = content.split("\n")
+  for i, line in enumerate(lines):
+    if line.strip() == "};":
+      lines[i:i] = new_lines
+      break
+
+  PARAMS_KEYS_H.write_text("\n".join(lines))
+  print(f"params_keys.h: added {len(new_lines)} dp_ entries")
 
 
 def main():
-    data = merge_yaml_files()
-
-    # Generate settings.py (fresh)
-    print(f"Generating {SETTINGS_PY_OUT}...")
-    settings_content = generate_settings_py(data)
-    with open(SETTINGS_PY_OUT, "w") as f:
-        f.write(settings_content)
-    print(f"  Written {len(settings_content.splitlines())} lines")
-
-    # Generate and update params_keys.h (with markers)
-    print(f"Generating dragonpilot params for {PARAMS_KEYS_H_OUT}...")
-    dp_params = generate_params_keys_h(data)
-    update_params_keys_h(dp_params)
-    print("  Updated params_keys.h")
+  params = collect_all_params()
+  print(f"Collected {len(params)} params from {SETTINGS_DIR}")
+  update_params_keys_h(params)
 
 
 if __name__ == "__main__":
-    main()
+  main()

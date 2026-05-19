@@ -1,3 +1,20 @@
+# Copyright (c) 2026, Rick Lan
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, and/or sublicense,
+# for non-commercial purposes only, subject to the following conditions:
+#
+# - The above copyright notice and this permission notice shall be included in
+#   all copies or substantial portions of the Software.
+# - Commercial use (e.g. use in a product, service, or activity intended to
+#   generate revenue) is prohibited without explicit written permission from
+#   the copyright holder.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+import ast
 import os
 
 from openpilot.system.ui.widgets import Widget, DialogResult
@@ -8,7 +25,7 @@ from openpilot.system.ui.widgets.list_view import toggle_item, simple_item, butt
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
 from openpilot.system.hardware import HARDWARE
-from dragonpilot.settings import SETTINGS
+from dragonpilot.settings import SETTINGS, extract_depends_on_refs
 
 LITE = os.getenv("LITE") is not None
 MICI = HARDWARE.get_device_type() == "mici"
@@ -22,6 +39,8 @@ class DragonpilotLayout(Widget):
 
     self._toggles = {}
     self._toggle_metadata = {}
+    self._defaults: dict[str, str] = {}                          # key -> default value (fallback when param unset)
+    self._reverse_deps: dict[str, list[tuple[str, str]]] = {}    # parent_key -> [(child_key, expr), ...]
     self._item_factories = {
       "toggle_item": toggle_item,
       "spin_button_item": spin_button_item,
@@ -47,6 +66,7 @@ class DragonpilotLayout(Widget):
 
   def _load_settings(self):
     settings_data = SETTINGS
+    self._build_dependency_maps(settings_data)
 
     for i, section in enumerate(settings_data):
       if self._check_condition(section.get("condition")):
@@ -76,6 +96,45 @@ class DragonpilotLayout(Widget):
   def _resolve(self, value):
     """Resolve callable values (lambdas) to their actual values."""
     return value() if callable(value) else value
+
+  def _build_dependency_maps(self, settings_data):
+    """Collect every UI item's default and invert depends_on into a reverse map."""
+    for section in settings_data:
+      for item in section.get("settings", []):
+        if "key" in item and "default" in item:
+          self._defaults[item["key"]] = str(item["default"])
+
+    for section in settings_data:
+      for item in section.get("settings", []):
+        expr = item.get("depends_on")
+        if not expr:
+          continue
+        refs = extract_depends_on_refs(expr)
+        if not refs:
+          continue
+        for parent_key in refs:
+          self._reverse_deps.setdefault(parent_key, []).append((item["key"], expr))
+
+  def _eval_depends_on(self, expr):
+    """Evaluate a depends_on expression against current param-store values.
+    Returns True on any eval error so we fail open (item stays enabled)."""
+    refs = extract_depends_on_refs(expr)
+    if refs is None:
+      return True
+    bindings: dict = {}
+    for ref in refs:
+      raw = ui_state.params.get(ref)
+      val = raw.decode() if isinstance(raw, bytes) else raw
+      if val is None or val == "":
+        val = self._defaults.get(ref, "0")
+      try:
+        bindings[ref] = ast.literal_eval(val)
+      except (ValueError, SyntaxError):
+        bindings[ref] = val
+    try:
+      return bool(eval(expr, bindings))
+    except Exception:
+      return True
 
   def _create_item(self, setting):
     key = setting["key"]
@@ -107,24 +166,9 @@ class DragonpilotLayout(Widget):
       else: # spin_button_item
         args["initial_value"] = int(initial_val)
 
-    # Handle initial enabled state
-    if "initially_enabled_by" in setting:
-      enabled_by = setting["initially_enabled_by"]
-      source_param = enabled_by["param"]
-      source_val_raw = ui_state.params.get(source_param)
-      source_val = source_val_raw.decode() if isinstance(source_val_raw, bytes) else source_val_raw
-      if source_val is None:
-        source_val = enabled_by.get("default")
-
-      if source_val is not None:
-        condition_str = enabled_by["condition"]
-        try:
-          is_enabled = eval(condition_str, {"value": int(source_val)})
-          args["enabled"] = is_enabled
-        except Exception:
-          args["enabled"] = True
-      else:
-        args["enabled"] = True
+    # Initial enabled state from depends_on
+    if "depends_on" in setting:
+      args["enabled"] = self._eval_depends_on(setting["depends_on"])
 
     # Handle callback creation
     primary_action = None
@@ -136,30 +180,16 @@ class DragonpilotLayout(Widget):
       else: # spin_button_item, text_spin_button_item
         primary_action = lambda val, p=param_name: ui_state.params.put(p, int(val))
 
-    side_effects = []
-    if "on_change" in setting:
-      for effect in setting["on_change"]:
-        target_key = effect.get("target")
-        action = effect.get("action")
-        condition_str = effect.get("condition")
+    # When this item changes, re-evaluate every child that depends on it
+    parent_deps = self._reverse_deps.get(key, [])
 
-        if target_key and action == "set_enabled" and condition_str:
-          def create_side_effect(tk=target_key, cs=condition_str):
-            def side_effect_action(val):
-              if tk in self._toggles:
-                try:
-                  is_enabled = eval(cs, {"value": val})
-                  self._toggles[tk].action_item.set_enabled(is_enabled)
-                except Exception:
-                  pass
-            return side_effect_action
-          side_effects.append(create_side_effect())
-
-    def combined_callback(val):
+    def combined_callback(val, deps=parent_deps):
       if primary_action:
         primary_action(val)
-      for effect in side_effects:
-        effect(val)
+      for child_key, expr in deps:
+        widget = self._toggles.get(child_key)
+        if widget is not None:
+          widget.action_item.set_enabled(self._eval_depends_on(expr))
 
     if "callback" in setting and setting["callback"]:
       args["callback"] = getattr(self, setting["callback"])
@@ -234,8 +264,6 @@ class DragonpilotLayout(Widget):
           widget.action_item.set_value(int(val_str))
         elif item_type == "text_spin_button_item":
           widget.action_item.set_index(int(val_str))
-        else:  # spin_button_item and text_spin_button_item
-          pass
 
   def _render(self, rect):
     self._scroller.render(rect)
