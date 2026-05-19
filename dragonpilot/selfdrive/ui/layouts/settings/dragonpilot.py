@@ -195,8 +195,8 @@ class DragonpilotLayout(Widget):
       ui_state.params.put_bool("dp_dev_reset_conf", True)
       ui_state.params.put_bool("DoReboot", True)
 
-    dialog = ConfirmDialog(tr("Are you sure you want to reset ALL DP SETTINGS to default?"), tr("Reset"))
-    gui_app.set_modal_overlay(dialog, callback=reset_dp_conf)
+    dialog = ConfirmDialog(tr("Are you sure you want to reset ALL DP SETTINGS to default?"), tr("Reset"), callback=reset_dp_conf)
+    gui_app.push_widget(dialog)
 
   def show_event(self):
     self._scroller.show_event()
