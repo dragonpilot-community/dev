@@ -183,8 +183,11 @@ cache_dir = '/data/scons_cache' if arch == "larch64" else '/tmp/scons_cache'
 CacheDir(cache_dir)
 Clean(["."], cache_dir)
 
-# dragonpilot settings generation
-env.Command('dragonpilot/generate_settings.py', None, 'bash ./generate_settings.sh')
+# dragonpilot settings generation — runs every scons invocation, idempotent.
+# Writes common/params_keys.h in place; we don't declare a target so scons
+# treats it purely as a pre-build side effect.
+if env.Execute('./generate_settings.py') != 0:
+  Exit('generate_settings.py failed')
 
 # ********** start building stuff **********
 
