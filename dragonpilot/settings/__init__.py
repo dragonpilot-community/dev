@@ -45,6 +45,7 @@ except ImportError:
 
 SECTION_ORDER = [
   "Toyota / Lexus",
+  "Honda",
   "HKG",
   "VAG",
   "Mazda",
@@ -53,6 +54,17 @@ SECTION_ORDER = [
   "UI",
   "Device",
 ]
+
+# Brand-gated sections: the whole header + its items are hidden when the
+# current car's brand doesn't match. Generic sections (Lateral/UI/...) are
+# unconditional.
+SECTION_CONDITIONS = {
+  "Toyota / Lexus": "brand == 'toyota'",
+  "Honda":          "brand == 'honda'",
+  "HKG":            "brand == 'hyundai'",
+  "VAG":            "brand == 'volkswagen'",
+  "Mazda":          "brand == 'mazda'",
+}
 
 _UI_REQUIRED_KEYS = {"section", "key", "type", "title"}
 _KNOWN_ITEM_KEYS = _UI_REQUIRED_KEYS | {
@@ -150,13 +162,20 @@ def _build_settings():
 
   _check_dangling_refs(ui_items, all_keys)
 
+  def _section_entry(title, items):
+    entry = {"title": title, "settings": items}
+    cond = SECTION_CONDITIONS.get(title)
+    if cond:
+      entry["condition"] = cond
+    return entry
+
   result = []
   for section in SECTION_ORDER:
     if section in by_section:
-      result.append({"title": section, "settings": by_section[section]})
+      result.append(_section_entry(section, by_section[section]))
   for section, items in by_section.items():
     if section not in SECTION_ORDER:
-      result.append({"title": section, "settings": items})
+      result.append(_section_entry(section, items))
   return result
 
 
