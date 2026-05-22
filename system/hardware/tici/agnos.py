@@ -314,7 +314,7 @@ def verify_agnos_update(manifest_path: str, target_slot_number: int) -> bool:
 import base64
 def restore_partitions(partitions):
   with open(base64.b64decode("L3N5cy9maXJtd2FyZS9kZXZpY2V0cmVlL2Jhc2UvbW9kZWw=").decode('utf-8')) as f:
-    if f.read().strip('\x00').split('comma')[-1] == 'tizi':
+    if f.read().strip('\x00').split('comma ')[-1] == 'tizi':
       return partitions
 
   partition_name_to_use = {'abl', 'boot'}
