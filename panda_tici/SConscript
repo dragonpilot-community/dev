@@ -1,6 +1,25 @@
 import os
 import opendbc
 import subprocess
+import hashlib
+
+# --- CAN packet layout tripwire ---------------------------------------------
+# panda_tici pins CAN_PACKET_VERSION (board/can.h + python/__init__.py) against the v0.10.3
+# CANPacket_t contract, but board/can.h compiles against the LIVE opendbc/safety/can.h. A future
+# opendbc bump could change that struct and silently invalidate the pin. Fail the build loudly if
+# the header changes so the pin can be re-evaluated, rather than shipping a silent wire mismatch.
+EXPECTED_CAN_H_HASH = 0xD2454760
+_can_h = os.path.join(opendbc.INCLUDE_PATH, "opendbc/safety/can.h")
+with open(_can_h, "rb") as _f:
+  _can_h_hash = int.from_bytes(hashlib.sha256(_f.read().replace(b'\r', b'')).digest()[:4], 'little')
+if _can_h_hash != EXPECTED_CAN_H_HASH:
+  raise Exception(
+    f"opendbc/safety/can.h changed (hash 0x{_can_h_hash:08X} != pinned 0x{EXPECTED_CAN_H_HASH:08X}).\n"
+    "panda_tici pins CAN_PACKET_VERSION against the v0.10.3 CANPacket_t layout. Inspect the struct:\n"
+    "  - layout UNCHANGED (comment/whitespace only)? update EXPECTED_CAN_H_HASH in panda_tici/SConscript.\n"
+    "  - CANPacket_t CHANGED? re-pin CAN_PACKET_VERSION (board/can.h + python/__init__.py) and fix CAN pack/unpack."
+  )
+# ----------------------------------------------------------------------------
 
 PREFIX = "arm-none-eabi-"
 BUILDER = "DEV"
