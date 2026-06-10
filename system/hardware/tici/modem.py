@@ -74,6 +74,14 @@ class State(Enum):
 STATE_WAIT = 1.0  # seconds to wait after each state handler returns
 
 
+def get_device_type() -> str:
+  try:
+    with open("/sys/firmware/devicetree/base/model") as f:
+      return f.read().strip("\x00").split("comma ")[-1]
+  except OSError:
+    return ""
+
+
 class PPPSession:
   """Owns pppd lifecycle, fail tracking, and PPP routing."""
   MAX_FAILS = 3
@@ -263,11 +271,18 @@ class Modem:
     cmds = [
       # clear initial EPS bearer APN (some carriers reject the default)
       'AT+CGDCONT=0,"IP",""',
+    ]
 
-      # SIM hot swap
-      'AT+QSIMDET=1,0',
-      'AT+QSIMSTAT=1',
+    # SIM hot swap: never enabled on C3 (tici) - matches openpilot v0.10.0, which
+    # only sent these on tizi (C3X). Enabling SIM-detect on the C3 can cause
+    # spurious SIM-removed events and drop the connection.
+    if get_device_type() != "tici":
+      cmds += [
+        'AT+QSIMDET=1,0',
+        'AT+QSIMSTAT=1',
+      ]
 
+    cmds += [
       # configure modem as data-centric
       'AT+QNVW=5280,0,"0102000000000000"',
       'AT+QNVFW="/nv/item_files/ims/IMS_enable",00',
