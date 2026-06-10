@@ -18,7 +18,7 @@ def _build_libsafety() -> str:
   cflags = [
     '-Wall', '-Wextra', '-Werror', '-nostdlib', '-fno-builtin',
     '-std=gnu11', '-Wfatal-errors', '-Wno-pointer-to-int-cast',
-    '-g', '-O0', '-fno-omit-frame-pointer', '-DALLOW_DEBUG',
+    '-g', '-O0', '-fno-omit-frame-pointer', '-DALLOW_DEBUG', '-DCANFD',
     '-fprofile-arcs', '-ftest-coverage',
   ]
   ldflags = [
