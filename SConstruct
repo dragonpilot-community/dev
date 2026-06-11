@@ -259,6 +259,7 @@ if arch == "larch64":
 # Build selfdrive
 SConscript([
   'selfdrive/pandad/SConscript',
+  'selfdrive/pandad_tici/SConscript',
   'selfdrive/controls/lib/lateral_mpc_lib/SConscript',
   'selfdrive/controls/lib/longitudinal_mpc_lib/SConscript',
   'selfdrive/locationd/SConscript',
