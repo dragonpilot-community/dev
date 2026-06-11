@@ -59,6 +59,9 @@ allowed_system_libs = {
   "EGL", "GLESv2", "GL",
   "Qt5Charts", "Qt5Core", "Qt5Gui", "Qt5Widgets",
   "dl", "drm", "gbm", "m", "pthread",
+  # dragonpilot: comma3 multi-panda USB (selfdrive/pandad_tici) + cabana/jotpluggler need libusb.
+  # Upstream removed USB and dropped libusb from this whitelist; we keep aux-panda so re-allow it.
+  "usb-1.0",
 }
 
 def _resolve_lib(env, name):
