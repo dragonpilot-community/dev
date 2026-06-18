@@ -88,12 +88,10 @@ set_tici_hw() {
       # wait long while the panda is still coming up, short between confirmations
       if [ -n "$last" ]; then sleep 1; else sleep 3; fi
 
-      # Transport is the DOS/TRES discriminator: TRES=SPI (H7), DOS=USB (F4). With
-      # more than one panda attached, prefer the internal SPI panda (so an external
-      # USB panda can't win on a C3/C3X), falling back to the first USB panda for
-      # USB-only hardware (DOS/lite). Panda.list() is unordered (it set()s), so the
-      # preference order is built explicitly.
-      case "$(python -c "from panda_tici import Panda; s = Panda.spi_list() or sorted(Panda.usb_list()); p = Panda(serial=(s[0] if s else None), cli=False); print(p.get_mcu_type()); p.close()" 2>/dev/null)" in
+      # Only the internal panda exists here: the aux USB-C port isn't switched to
+      # host mode until after this runs (see set_aux_panda), so a plain connect is
+      # unambiguous - there is exactly one panda to read.
+      case "$(python -c "from panda_tici import Panda; p = Panda(cli=False); print(p.get_mcu_type()); p.close()" 2>/dev/null)" in
         *McuType.F4*) cur="F4" ;;
         *McuType.H7*) cur="H7" ;;
         *)            cur="" ;;
@@ -133,10 +131,36 @@ set_tici_hw() {
     echo "TICI (DOS) detected"
     mount_nvme
     export TICI_DOS=1
+    set_aux_panda              # DOS uses pandad_tici, which supports a 2nd (aux) USB panda
   else
     echo "TICI (TRES) detected"
     export TICI_TRES=1
   fi
+}
+
+# The aux USB-C port (a600000.ssusb) boots in OTG idle ("none"); a 2nd panda
+# plugged there only enumerates once the port is switched to USB host mode. Only
+# DOS (pandad_tici) supports a 2nd USB panda, so this runs for F4 only, and only
+# after set_tici_hw has fingerprinted the internal panda alone. Keep host mode
+# only if a 2nd panda actually shows up; otherwise revert to "none" so the port
+# stays usable as a USB device (PC connect) on units with no aux panda. Aux
+# presence is dynamic (plug/unplug), so it is probed every boot, not cached.
+set_aux_panda() {
+  local mode="/sys/devices/platform/soc/a600000.ssusb/mode"
+  [ -e "$mode" ] || return 0
+
+  echo "Checking for aux panda (switching USB-C port to host mode)..."
+  echo host | sudo tee "$mode" >/dev/null 2>&1
+  for _ in $(seq 1 6); do          # ~3s budget; aux enumerated in ~1-2s in testing
+    sleep 0.5
+    if [ "$(lsusb 2>/dev/null | grep -c 'comma.ai panda')" -ge 2 ]; then
+      echo "aux panda detected (USB host mode kept)"
+      return 0
+    fi
+  done
+
+  echo "no aux panda found; reverting USB-C port to device mode"
+  echo none | sudo tee "$mode" >/dev/null 2>&1
 }
 
 mount_nvme() {
