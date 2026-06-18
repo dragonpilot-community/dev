@@ -62,36 +62,80 @@ function agnos_init {
   fi
 }
 
+# Determine the panda MCU type (F4=DOS, H7=TRES) and set the TICI_* env vars.
+# The MCU type is a permanent hardware fact, so it is detected once and cached in
+# /persist (survives fork switch / reset / reflash); every later boot reads the
+# cache and skips the panda query entirely.
 set_tici_hw() {
-  if grep -q "tici" /sys/firmware/devicetree/base/model 2>/dev/null; then
-    export TICI_HW=1
+  grep -q "tici" /sys/firmware/devicetree/base/model 2>/dev/null || return 0
+  export TICI_HW=1
+
+  local cache="/persist/dp_dev_panda_mcu_type"
+  local attempts=15 confirm=3         # give up after N reads; trust after M in a row
+  local mcu="" count=0 last="" cur cached
+
+  # --- fast path: trust a valid (F4/H7) cached value, no panda query or sleep ---
+  cached=$(cat "$cache" 2>/dev/null)
+  case "$cached" in
+    F4|H7) mcu="$cached"; echo "panda MCU $mcu [cached]" ;;
+  esac
+
+  # --- slow path: detect, requiring M consecutive identical reads to reject a
+  #     transient misread while the panda enumerates, then persist for next boot ---
+  if [ -z "$mcu" ]; then
     echo "Querying panda MCU type..."
+    for attempt in $(seq 1 "$attempts"); do
+      # wait long while the panda is still coming up, short between confirmations
+      if [ -n "$last" ]; then sleep 1; else sleep 3; fi
 
-    # Loop for a maximum of 10 attempts
-    for attempt in {1..10}; do
-      # Initial wait or wait between retries
-      sleep 3
+      # Transport is the DOS/TRES discriminator: TRES=SPI (H7), DOS=USB (F4). With
+      # more than one panda attached, prefer the internal SPI panda (so an external
+      # USB panda can't win on a C3/C3X), falling back to the first USB panda for
+      # USB-only hardware (DOS/lite). Panda.list() is unordered (it set()s), so the
+      # preference order is built explicitly.
+      case "$(python -c "from panda_tici import Panda; s = Panda.spi_list() or sorted(Panda.usb_list()); p = Panda(serial=(s[0] if s else None), cli=False); print(p.get_mcu_type()); p.close()" 2>/dev/null)" in
+        *McuType.F4*) cur="F4" ;;
+        *McuType.H7*) cur="H7" ;;
+        *)            cur="" ;;
+      esac
 
-      MCU_OUTPUT=$(python -c "from panda_tici import Panda; p = Panda(cli=False); print(p.get_mcu_type()); p.close()" 2>/dev/null)
-
-      if [[ "$MCU_OUTPUT" == *"McuType.F4"* ]]; then
-        echo "TICI (DOS) detected"
-        mount_nvme
-        export TICI_DOS=1
-        return 0  # Success, exit function
-      elif [[ "$MCU_OUTPUT" == *"McuType.H7"* ]]; then
-        echo "TICI (TRES) detected"
-        export TICI_TRES=1
-        return 0  # Success, exit function
+      if [ -n "$cur" ] && [ "$cur" = "$last" ]; then
+        count=$((count + 1))
+      else
+        count=1
+        last="$cur"
       fi
 
-      # If we reach here, it was UNKNOWN
-      echo "TICI (UNKNOWN) detected. Attempt $attempt of 10..."
+      if [ -n "$cur" ] && [ "$count" -ge "$confirm" ]; then
+        mcu="$cur"
+        break
+      fi
+      echo "panda MCU read='${cur:-UNKNOWN}' (confirmed $count/$confirm, attempt $attempt/$attempts)"
     done
 
-    # If the loop finishes without returning, we failed 10 times
-    echo "TICI (UNKNOWN) detected after 10 attempts, stop processing."
-    exit 1
+    if [ -z "$mcu" ]; then
+      echo "TICI (UNKNOWN) detected after $attempts attempts, stop processing."
+      exit 1
+    fi
+
+    # Persist it so future boots skip detection. /persist is comma's protected,
+    # read-only partition, so flip it rw just for this one write (happens once per
+    # device) and back to ro. The fast-path cat above reads fine on a ro mount, so
+    # only the write needs this. Any failure here is non-fatal: re-detect next boot.
+    if sudo mount -o remount,rw /persist 2>/dev/null; then
+      echo "$mcu" | sudo tee "$cache" >/dev/null 2>&1
+      sudo mount -o remount,ro /persist 2>/dev/null
+    fi
+  fi
+
+  # --- apply: DOS (F4) also mounts the NVMe; TRES (H7) does not ---
+  if [ "$mcu" = "F4" ]; then
+    echo "TICI (DOS) detected"
+    mount_nvme
+    export TICI_DOS=1
+  else
+    echo "TICI (TRES) detected"
+    export TICI_TRES=1
   fi
 }
 
