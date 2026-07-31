@@ -19,7 +19,7 @@ def iscar(started: bool, params: Params, CP: car.CarParams) -> bool:
   return started and not CP.notCar
 
 def logging(started: bool, params: Params, CP: car.CarParams) -> bool:
-  run = (not CP.notCar) or not params.get_bool("DisableLogging")
+  run = not params.get_bool("DisableLogging")
   return started and run
 
 def ublox_available() -> bool:
@@ -119,5 +119,12 @@ procs = [
   PythonProcess("webjoystick", "tools.bodyteleop.web", notcar),
   PythonProcess("joystick", "tools.joystick.joystick_control", and_(joystick, iscar)),
 ]
+
+# dp - feature processes. Each feature ships dragonpilot/system/manager/procs/NN_<name>.py
+# exporting PROCS, with its gating predicate in the same file. Features therefore touch
+# neither the predicate region nor the procs list above, which used to be two shared
+# anchors colliding across 7 branches.
+from dragonpilot.system.manager.procs import dp_procs  # noqa: E402
+procs += dp_procs()
 
 managed_processes = {p.name: p for p in procs}

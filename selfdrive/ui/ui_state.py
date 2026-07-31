@@ -10,6 +10,7 @@ from openpilot.common.params import Params
 from openpilot.common.realtime import drop_realtime
 from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.ui.lib.prime_state import PrimeState
+from dragonpilot.selfdrive.ui.dp_ui_params import apply_dp_ui_params
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.hardware import HARDWARE, PC
 
@@ -93,6 +94,11 @@ class UIState:
     self._offroad_transition_callbacks: list[Callable[[], None]] = []
     self._engaged_transition_callbacks: list[Callable[[], None]] = []
     self._on_body_changed_callbacks: list[Callable[[], None]] = []
+
+    # dp - apply every declared UI param as an attribute named after its param key
+    # (self.dp_ui_rainbow, ...). Features declare "ui_param": True in their own
+    # settings file instead of adding a read here.
+    apply_dp_ui_params(self, self.params)
 
   def add_offroad_transition_callback(self, callback: Callable[[], None]):
     self._offroad_transition_callbacks.append(callback)
