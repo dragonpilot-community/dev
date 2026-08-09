@@ -145,6 +145,14 @@ testpaths = [
   "system",
   "tools",
   "cereal",
+  # dp - feature tests live beside their feature. Without this they are collected by
+  # nothing: a bare `pytest` found 0 of them while 6 dp test files sat in the tree.
+  "dragonpilot",
+  # dp - the safety tests exercise the real C safety code with the python SafetyFlags
+  # values, so they catch a python/C flag mismatch behaviourally - stronger than
+  # comparing the numbers. They were collected by nothing (opendbc_repo is not a
+  # testpath), which meant dp's own test_alka.py and test_tx_ext.py never ran. ~60s.
+  "opendbc_repo/opendbc/safety/tests",
 ]
 
 [tool.codespell]

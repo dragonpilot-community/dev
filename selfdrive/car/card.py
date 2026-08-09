@@ -12,6 +12,7 @@ from openpilot.common.realtime import config_realtime_process, Priority, Ratekee
 from openpilot.common.swaglog import cloudlog, ForwardingHandler
 
 from opendbc.car import DT_CTRL, structs
+from opendbc.car.dp_params import DP_CAR, DP_CAR_PARAMS_KEYS
 from opendbc.car.can_definitions import CanData, CanRecvCallable, CanSendCallable
 from opendbc.car.carlog import carlog
 from opendbc.car.fw_versions import ObdCallback
@@ -80,6 +81,11 @@ class Car:
     self.can_callbacks = can_comm_callbacks(self.can_sock, self.pm.sock['sendcan'])
 
     is_release = self.params.get_bool("IsReleaseBranch")
+
+    # dp - fill the car-param state brand interfaces read. Keys come from the
+    # generated DP_CAR_PARAMS_KEYS, so features declare params in their own settings
+    # file instead of patching this function.
+    DP_CAR.update({k: self.params.get_bool(k) for k in DP_CAR_PARAMS_KEYS})
 
     if CI is None:
       # wait for one pandaState and one CAN packet
